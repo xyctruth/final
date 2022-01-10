@@ -30,10 +30,6 @@ func Middleware2(c *final.Context) error {
 	return nil
 }
 
-func Handler1(c *final.Context) error {
-	return nil
-}
-
 type Test struct {
 	Id   int64
 	Name string

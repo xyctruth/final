@@ -16,8 +16,8 @@ type (
 		Payload []byte
 		Policy  *MessagePolicy
 
-		AckChan    chan struct{} `json:"-"`
-		RejectChan chan struct{} `json:"-"`
+		AckChan    chan struct{} `msgpack:"-"`
+		RejectChan chan struct{} `msgpack:"-"`
 
 		mutex sync.Mutex
 	}

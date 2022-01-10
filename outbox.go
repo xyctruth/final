@@ -2,14 +2,11 @@ package final
 
 import (
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"time"
 
-	migrate "github.com/rubenv/sql-migrate"
-	"github.com/xyctruth/final/message"
-
 	"github.com/sirupsen/logrus"
+	"github.com/vmihailenco/msgpack/v5"
+	"github.com/xyctruth/final/message"
 )
 
 // db发件箱，在未收到ack前消息会保存在 outbox 中
@@ -36,24 +33,13 @@ func newOutBox(svcName string, db *sql.DB, logger *logrus.Entry) *outbox {
 func (outbox *outbox) migration() error {
 	init := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
 			(
-				id        bigint auto_increment
-					primary key,
+				id        bigint auto_increment primary key,
 				message   longblob    null,
 				status    bigint      null,
 				create_at datetime(3) null
 			);`
 
-	migrations := &migrate.MemoryMigrationSource{
-		Migrations: []*migrate.Migration{
-			{
-				Id:   "init",
-				Up:   []string{init},
-				Down: []string{"DROP TABLE " + outbox.name},
-			},
-		},
-	}
-
-	n, err := migrate.Exec(outbox.db, "mysql", migrations, migrate.Up)
+	n, err := outbox.db.Exec(init)
 
 	if err != nil {
 		outbox.logger.WithError(err).Error("migrations error")
@@ -66,7 +52,10 @@ func (outbox *outbox) migration() error {
 // 暂存消息到db发件箱中
 func (outbox *outbox) staging(tx *sql.Tx, message *message.Message) error {
 	err := outbox.transaction(tx, func(tx *sql.Tx) error {
-		record := newRecord(message)
+		record, err := newRecord(message)
+		if err != nil {
+			return err
+		}
 		result, err := tx.Exec("INSERT INTO "+outbox.name+" (message,status,create_at) VALUES (?,?,?)",
 			record.Message, record.Status, record.CreateAt)
 		if err != nil {
@@ -118,19 +107,18 @@ func (outbox *outbox) take(tx *sql.Tx, offset int64) ([]*message.Message, error)
 		for rows.Next() {
 			var (
 				id       int64
-				msgBtyes []byte
+				msgBytes []byte
 				status   int
 				createAt time.Time
 			)
-			if err := rows.Scan(&id, &msgBtyes, &status, &createAt); err != nil {
+			if err := rows.Scan(&id, &msgBytes, &status, &createAt); err != nil {
 				outbox.logger.WithError(err).Error("row  scan error")
 			}
 
 			msg := &message.Message{}
-
-			err := json.Unmarshal(msgBtyes, msg)
+			err := msgpack.Unmarshal(msgBytes, msg)
 			if err != nil {
-				outbox.logger.WithError(err).Error("json.Unmarshal(msgBtyes, msg) error")
+				panic(err)
 			}
 			msg.Header.Set("record_id", id)
 			msgs = append(msgs, msg)
@@ -165,15 +153,15 @@ func (outbox *outbox) transaction(tx *sql.Tx, fc func(tx *sql.Tx) error) error {
 	return err
 }
 
-func newRecord(message *message.Message) *Record {
-	messageByte, err := json.Marshal(message)
+func newRecord(message *message.Message) (*Record, error) {
+	messageByte, err := msgpack.Marshal(message)
 	if err != nil {
-		fmt.Println(err)
+		return nil, err
 	}
 	return &Record{
 		Message:  messageByte,
 		CreateAt: time.Now(),
-	}
+	}, nil
 }
 
 type Record struct {
