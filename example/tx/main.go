@@ -33,10 +33,10 @@ func send() {
 	for true {
 		msg := DemoMessage{Type: "aaa", Count: 100}
 		msgBytes, _ := msgpack.Marshal(msg)
-		tx := example.NewDB().Begin()
+		gormTX := example.NewDB().Begin()
 		/* return err rollback，return nil commit */
-		bus.Transaction(tx.Statement.ConnPool.(*sql.Tx), func(txBus *final.TxBus) error {
-			err := tx.Table("test").Create(&example.Test{Name: "aaa"}).Error
+		bus.Transaction(gormTX.Statement.ConnPool.(*sql.Tx), func(txBus *final.TxBus) error {
+			err := gormTX.Table("test").Create(&example.Test{Name: "aaa"}).Error
 			if err != nil {
 				return err
 			}

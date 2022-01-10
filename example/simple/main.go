@@ -25,7 +25,7 @@ type DemoMessage struct {
 }
 
 func send() {
-	db, _ := example.NewDB().DB()
+	db := example.NewSqlDB()
 	mq, _ := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
 	bus := final.New("send_svc", db, mq)
 	bus.Start()
