@@ -1,0 +1,195 @@
+run:
+  concurrency: 4
+  timeout: 1m
+  issues-exit-code: 0
+  tests: true
+  skip-dirs:
+  #    - adapter
+  #    - app
+  #    - devops
+  #    - domain
+  #    - infra
+  skip-files:
+#    - ".*\\.go$"
+
+linters-settings:
+
+  # 检查带有过多空标识符的赋值（例如x,_,_,_,:= f()）
+  dogsled:
+    # 检查具有太多空标识符的分配；默认值为2
+    max-blank-identifiers: 2
+
+  # 检查代码复制情况
+  dupl:
+    # 用于触发问题的重复词计数
+    threshold: 100
+
+  # 检查方法行数和语句数
+  funlen:
+    # 行数
+    lines: 100
+    # 语句数
+    statements: 50
+
+  # 查找可以用常量替换的重复字符串
+  goconst:
+    # 最小字符串的长度
+    min-len: 2
+    # 最小出现次数
+    min-occurrences: 2
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport # https://github.com/go-critic/go-critic/issues/845
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+
+  # 计算并检查函数的复杂度
+  gocyclo:
+    # 方法嵌套高度
+    min-complexity: 15
+
+  #todo
+  golint:
+    min-confidence: 0.8
+
+  # 检查magic numbers
+  gomnd:
+    settings:
+      mnd:
+        # don't include the "operation" and "assign"
+        checks: argument,case,condition,return
+
+  # 简化代码
+  gosimple:
+    go: "1.15"
+
+  # 检查Go代码中未使用的常量、变量、函数和类型
+  unused:
+    go: "1.15"
+
+  staticcheck:
+    go: "1.15"
+
+  stylecheck:
+    go: "1.15"
+
+  # Vet检查Go源代码并报告可疑的构造，例如Printf调用，其参数与格式字符串不一致
+  govet:
+    check-shadowing: true
+    settings:
+      printf:
+        funcs:
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+
+  # 包导入限制
+  depguard:
+    list-type: blacklist
+    packages:
+      # logging is allowed only by logutils.Log, logrus
+      # is allowed to use only in logutils package
+      - github.com/sirupsen/logrus
+    packages-with-error-message:
+      - github.com/sirupsen/logrus: "logging is allowed only by logutils.Log"
+
+  lll:
+    # max line length
+    line-length: 140
+
+
+  maligned:
+    suggest-new: true
+
+    # 英语单词拼写错误
+  misspell:
+    locale: US
+
+  nolintlint:
+    allow-leading-space: true # don't require machine-readable nolint directives (i.e. with no leading space)
+    allow-unused: false # report any unused nolint directives
+    require-explanation: false # don't require an explanation for nolint directives
+    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+
+linters:
+  # please, do not use `enable-all`: it's deprecated and will be removed soon.
+  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - exportloopref
+    - exhaustive
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - golint
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - noctx
+    - nolintlint
+    - rowserrcheck
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+
+  # don't enable:
+  # - asciicheck
+  # - scopelint
+  # - gochecknoglobals
+  # - gocognit
+  # - godot
+  # - godox
+  # - goerr113
+  # - interfacer
+  # - maligned
+  # - nestif
+  # - prealloc
+  # - testpackage
+  # - revive
+  # - wsl
+
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gomnd
+    - linters:
+        - gomnd
+      text: "匹配错误文本"
+    - linters:
+        - gocritic
+      text: "commentedOutCode:"
+
