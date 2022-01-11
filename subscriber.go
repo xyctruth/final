@@ -7,7 +7,7 @@ import (
 	"github.com/xyctruth/final/message"
 )
 
-//  subscriber 启动 SubscriberConfig.Num 个 goroutine 接收 sender的消息后 使用router处理消息
+// subscriber 启动 Options.SubscriberNum 个 goroutine 订阅消息队列中的消息 使用router处理消息
 type subscriber struct {
 	logger *logrus.Entry
 	id     string

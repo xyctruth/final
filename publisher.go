@@ -9,45 +9,39 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// publisher Post a message to the message queue
+// publisher 发送消息到消息队列中
 type publisher struct {
-	logger *logrus.Entry
-
-	publishMutex sync.Mutex
-	confirmMutex sync.Mutex
-
+	logger   *logrus.Entry
 	ackers   []*acker
 	ack      chan uint64
 	nack     chan uint64
-	pending  map[uint64]interface{}
+	pending  sync.Map
 	sequence uint64
 	bus      *Bus
 }
 
 func newPublisher(bus *Bus) *publisher {
-	publisher := &publisher{
+	return &publisher{
 		logger: bus.logger.WithFields(logrus.Fields{
 			"module": "publisher",
 		}),
-		pending: make(map[uint64]interface{}),
-		ack:     make(chan uint64, 10000),
-		nack:    make(chan uint64, 10000),
-		ackers:  make([]*acker, 0),
-		bus:     bus,
+		ack:    make(chan uint64, 10000),
+		nack:   make(chan uint64, 10000),
+		ackers: make([]*acker, 0),
+		bus:    bus,
 	}
-	return publisher
 }
 
-func (publisher *publisher) Start(ctx context.Context) error {
-	publisher.bus.mqProvider.NotifyConfirm(publisher.ack, publisher.nack)
+func (p *publisher) Start(ctx context.Context) error {
+	p.bus.mqProvider.NotifyConfirm(p.ack, p.nack)
 
-	publisher.logger.Info("Publisher start success")
+	p.logger.Info("Publisher start success")
 
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
-				publisher.logger.Info("Publisher stop success")
+				p.logger.Info("Publisher stop success")
 				return
 			}
 		}
@@ -56,48 +50,42 @@ func (publisher *publisher) Start(ctx context.Context) error {
 	return nil
 }
 
-func (publisher *publisher) publish(msgs ...*message.Message) {
-	publisher.publishMutex.Lock()
-	defer publisher.publishMutex.Unlock()
-
+func (p *publisher) publish(msgs ...*message.Message) {
 	for _, msg := range msgs {
-		err := publisher.bus.mqProvider.Publish(msg)
+		err := p.bus.mqProvider.Publish(msg)
 		if err != nil {
-			publisher.logger.WithError(err).Error("mqProvider publish failure")
+			p.logger.WithError(err).Error("mqProvider publish failure")
 			continue
 		}
 
 		if msg.Policy.Confirm {
-			publisher.sequence++
-			publisher.pending[publisher.sequence] = msg.Header.Get("record_id")
-
+			p.sequence++
+			p.pending.Store(p.sequence, msg.Header.Get("record_id"))
 		}
 	}
 }
 
-func (publisher *publisher) confirm(ack uint64) error {
-	publisher.confirmMutex.Lock()
-	defer publisher.confirmMutex.Unlock()
-
-	recordID := publisher.pending[ack]
-	publisher.logger.
+func (p *publisher) confirm(ack uint64) error {
+	recordID, _ := p.pending.Load(ack)
+	p.logger.
 		WithField("ack", ack).
 		WithField("recordID", recordID).
-		WithField("pending", publisher.pending).
+		WithField("pending", p.pending).
 		Info("ack received")
 
 	if recordID == nil {
 		go func() {
-			publisher.ack <- ack
+			p.ack <- ack
 		}()
 	}
 
-	if err := publisher.bus.outbox.done(nil, recordID); err != nil {
-		publisher.logger.WithError(err).
+	if err := p.bus.outbox.done(nil, recordID); err != nil {
+		p.logger.WithError(err).
 			WithField("ack", ack).
 			WithField("recordID", recordID).
 			Error("Failed to delete record")
 	}
-	delete(publisher.pending, ack)
+
+	p.pending.Delete(ack)
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// acker 启动  AckerConfig.Num 个goroutine接收 publisher 的ack消息后 Done掉 outbox 中的消息记录
+// acker 启动 Options.AckerNum 个goroutine接收消息队列ack消息后，Done掉 outbox 中的消息记录
 type acker struct {
 	logger *logrus.Entry
 

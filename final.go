@@ -17,15 +17,15 @@ import (
 type (
 	Bus struct {
 		svcName    string  // service name
-		opt        Options // Bus opt
+		opt        Options // Bus Options
 		db         *sql.DB
 		mqProvider mq.IProvider // mq provider
-		router     *router
 
-		outbox      *outbox       // outbox
-		subscribers []*subscriber // subscriber
-		publisher   *publisher    // publisher
-		ackers      []*acker
+		router      *router       // router 是handler的路由程序，帮助消息的到正确的handler处理
+		outbox      *outbox       // outbox db发件箱，在未收到ack前消息会保存在 outbox 中
+		subscribers []*subscriber // subscriber 启动 Options.SubscriberNum 个 goroutine 订阅消息队列中的消息 使用 router 处理消息
+		publisher   *publisher    // publisher 发送消息到消息队列中
+		ackers      []*acker      // acker 启动 Options.AckerNum 个goroutine接收消息队列ack消息后，Done掉 outbox 中的消息记录
 
 		logger  *logrus.Entry
 		msgPool sync.Pool

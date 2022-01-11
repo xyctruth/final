@@ -30,7 +30,6 @@ func TestPublish_SelfReceive(t *testing.T) {
 	})
 
 	bus.Start()
-	defer bus.Shutdown()
 
 	msg := DemoMessage{Type: "aaa", Count: 100}
 	msgBytes, err := msgpack.Marshal(msg)
@@ -43,6 +42,7 @@ func TestPublish_SelfReceive(t *testing.T) {
 	require.Equal(t, nil, err)
 
 	time.Sleep(1 * time.Second)
+	bus.Shutdown()
 
 	require.Equal(t, 2, count)
 }
