@@ -28,7 +28,7 @@ func newSubscriber(id string, bus *Bus) *subscriber {
 
 func (subscriber *subscriber) Start(ctx context.Context) error {
 	msgs := make(chan *message.Message)
-	err := subscriber.bus.mqProvider.Subscribe(context.Background(), subscriber.id, msgs)
+	err := subscriber.bus.mqProvider.Subscribe(ctx, subscriber.id, msgs)
 	if err != nil {
 		subscriber.logger.WithError(err).Error("Subscriber start failure")
 		return err

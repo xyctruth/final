@@ -94,7 +94,10 @@ func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opt Options) *Bus 
 func (bus *Bus) Start() error {
 	var err error
 
-	err = bus.initProvider()
+	ctx := context.Background()
+	ctx, bus.cancel = context.WithCancel(ctx)
+
+	err = bus.initProvider(ctx)
 	if err != nil {
 		return err
 	}
@@ -103,9 +106,6 @@ func (bus *Bus) Start() error {
 	if err != nil {
 		return err
 	}
-
-	ctx := context.Background()
-	ctx, bus.cancel = context.WithCancel(ctx)
 
 	for _, subscriber := range bus.subscribers {
 		err = subscriber.Start(ctx)
@@ -241,7 +241,7 @@ func (txBus *TxBus) publish() {
 	}()
 }
 
-func (bus *Bus) initProvider() error {
+func (bus *Bus) initProvider(ctx context.Context) error {
 	var err error
 
 	if bus.mqProvider == nil {
@@ -253,7 +253,7 @@ func (bus *Bus) initProvider() error {
 		topics = append(topics, topic)
 	}
 
-	err = bus.mqProvider.Init(bus.svcName, bus.opt.PurgeOnStartup, topics)
+	err = bus.mqProvider.Init(ctx, bus.svcName, bus.opt.PurgeOnStartup, topics)
 	if err != nil {
 		return err
 	}

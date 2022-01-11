@@ -3,6 +3,7 @@ package final
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 
 	"github.com/xyctruth/final/message"
 
@@ -57,8 +58,9 @@ func (p *publisher) publish(msgs ...*message.Message) {
 		}
 
 		if msg.Policy.Confirm {
-			p.sequence++
-			p.pending.Store(p.sequence, msg.Header.Get("record_id"))
+			atomic.AddUint64(&p.sequence, 1)
+			seq := atomic.LoadUint64(&p.sequence)
+			p.pending.Store(seq, msg.Header.Get("record_id"))
 		}
 	}
 }

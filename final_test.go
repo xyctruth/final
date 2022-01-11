@@ -1,6 +1,7 @@
 package final
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 )
 
 func TestPurgeOnStartup(t *testing.T) {
-
 	tests := []struct {
 		name  string
 		purge bool
@@ -31,6 +31,7 @@ func TestPurgeOnStartup(t *testing.T) {
 				msgpack.Unmarshal(c.Message.Payload, msg)
 				require.Equal(t, "aaa", msg.Type)
 				require.Equal(t, 100, msg.Count)
+				fmt.Println("===================================")
 				return nil
 			})
 			err := bus1.Start()
@@ -44,6 +45,7 @@ func TestPurgeOnStartup(t *testing.T) {
 			require.Equal(t, nil, err)
 			err = bus2.Publish("PurgeOnStartup", "handler1", NewDemoMessage("aaa", 100), message.WithConfirm(true))
 			require.Equal(t, nil, err)
+			time.Sleep(1 * time.Second)
 			err = bus2.Shutdown()
 			require.Equal(t, nil, err)
 
@@ -60,7 +62,7 @@ func TestPurgeOnStartup(t *testing.T) {
 }
 
 func TestPublish_SelfReceive(t *testing.T) {
-	bus := New("test_svc", NewDB(), NewAmqp(), DefaultOptions().WithAckerNum(1).WithSubscriberNum(1))
+	bus := New("test_svc", NewDB(), NewAmqp(), DefaultOptions().WithAckerNum(1).WithSubscriberNum(1).WithPurgeOnStartup(true))
 
 	count := 0
 
@@ -69,7 +71,7 @@ func TestPublish_SelfReceive(t *testing.T) {
 		msg := &DemoMessage{}
 		msgpack.Unmarshal(c.Message.Payload, msg)
 		require.Equal(t, "aaa", msg.Type)
-		require.Equal(t, int64(100), msg.Count)
+		require.Equal(t, 100, msg.Count)
 		return nil
 	})
 
@@ -87,6 +89,5 @@ func TestPublish_SelfReceive(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 	bus.Shutdown()
-
 	require.Equal(t, 2, count)
 }

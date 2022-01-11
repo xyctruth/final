@@ -15,8 +15,6 @@ import (
 )
 
 type Provider struct {
-	exit chan bool
-
 	log *logrus.Entry
 
 	connStr string
@@ -28,11 +26,6 @@ type Provider struct {
 	publishChannel *amqp.Channel
 	// 发布channel nowait
 	publishNoWaitChannel *amqp.Channel
-
-	//notify ch
-	connErrors    chan *amqp.Error
-	connBlocks    chan amqp.Blocking
-	channelErrors chan *amqp.Error
 
 	svcName string
 	topics  []string
@@ -48,7 +41,6 @@ type Provider struct {
 }
 
 func NewProvider(connStr string) (mq.IProvider, error) {
-
 	log := &logrus.Logger{}
 	return &Provider{
 		log: log.WithFields(logrus.Fields{
@@ -58,7 +50,7 @@ func NewProvider(connStr string) (mq.IProvider, error) {
 	}, nil
 }
 
-func (provider *Provider) Init(svcName string, purge bool, topics []string) error {
+func (provider *Provider) Init(ctx context.Context, svcName string, purge bool, topics []string) error {
 	var err error
 	conn, err := amqp.DialConfig(provider.connStr, amqp.Config{
 		Heartbeat: 10 * time.Minute,
@@ -68,7 +60,6 @@ func (provider *Provider) Init(svcName string, purge bool, topics []string) erro
 	}
 
 	provider.conn = conn
-	provider.exit = make(chan bool)
 	provider.purge = purge
 	provider.topics = topics
 	provider.svcName = svcName
@@ -76,16 +67,9 @@ func (provider *Provider) Init(svcName string, purge bool, topics []string) erro
 	provider.dlxQueueName = fmt.Sprintf("%s_dlx", svcName)
 	provider.dlxExchangeName = fmt.Sprintf("%s_exchange_dlx", svcName)
 
-	provider.connErrors = make(chan *amqp.Error)
-	provider.connBlocks = make(chan amqp.Blocking)
-	provider.conn.NotifyClose(provider.connErrors)
-	provider.conn.NotifyBlocked(provider.connBlocks)
-
-	provider.channelErrors = make(chan *amqp.Error)
 	if provider.initChannel, err = provider.conn.Channel(); err != nil {
 		return err
 	}
-	provider.initChannel.NotifyClose(provider.channelErrors)
 
 	if provider.publishChannel, err = provider.conn.Channel(); err != nil {
 		return err
@@ -120,7 +104,13 @@ func (provider *Provider) Init(svcName string, purge bool, topics []string) erro
 		return err
 	}
 
-	go provider.monitorAMQPErrors()
+	connErrors := make(chan *amqp.Error)
+	connBlocks := make(chan amqp.Blocking)
+	channelErrors := make(chan *amqp.Error)
+	provider.conn.NotifyClose(connErrors)
+	provider.conn.NotifyBlocked(connBlocks)
+	provider.initChannel.NotifyClose(channelErrors)
+	go provider.monitorAMQPErrors(ctx, connErrors, connBlocks, channelErrors)
 
 	return nil
 }
@@ -173,18 +163,18 @@ func (provider *Provider) Subscribe(ctx context.Context, consumerTag string, msg
 	go func() {
 		for {
 			select {
-			case <-provider.exit:
+			case <-ctx.Done():
 				return
 			case delivery := <-deliveries:
 				msg := NewMessageFromDelivery(delivery)
 				select {
-				case <-provider.exit:
+				case <-ctx.Done():
 					return
 				case msgs <- msg:
 					provider.log.WithField("uuid", msg.UUID).Trace("HandlerName sent to consumer")
 				}
 				select {
-				case <-provider.exit:
+				case <-ctx.Done():
 					return
 				case <-msg.Acked():
 					provider.log.WithField("uuid", msg.UUID).Trace("HandlerName Ack")
@@ -208,7 +198,6 @@ func (provider *Provider) Subscribe(ctx context.Context, consumerTag string, msg
 			}
 		}
 	}()
-
 	return nil
 }
 
@@ -313,7 +302,7 @@ func (provider *Provider) bindQueue(queue, topic, exchange string) error {
 	return provider.initChannel.QueueBind(queue, topic, exchange, false /*noWait*/, nil /*args*/)
 }
 
-func (provider *Provider) monitorAMQPErrors() {
+func (provider *Provider) monitorAMQPErrors(ctx context.Context, connErrors chan *amqp.Error, connBlocks chan amqp.Blocking, channelErrors chan *amqp.Error) {
 	defer func() {
 		if p := recover(); p != nil {
 			err := errors.New(fmt.Sprintf("%v\n%s", p, debug.Stack()))
@@ -323,16 +312,16 @@ func (provider *Provider) monitorAMQPErrors() {
 
 	for {
 		select {
-		case <-provider.exit:
+		case <-ctx.Done():
 			return
-		case blocked := <-provider.connBlocks:
+		case blocked := <-connBlocks:
 			provider.log.WithField("reason", blocked.Reason).WithField("active", blocked.Active).Warn("connBlocks warn")
-		case amqpErr, ok := <-provider.connErrors:
+		case amqpErr, ok := <-connErrors:
 			provider.log.WithField("amqp_error", amqpErr).Error("connErrors error")
 			if !ok {
 				return
 			}
-		case amqpErr, ok := <-provider.channelErrors:
+		case amqpErr, ok := <-channelErrors:
 			provider.log.WithField("amqp_error", amqpErr).Error("channelErrors error")
 			if !ok {
 				return
@@ -342,8 +331,6 @@ func (provider *Provider) monitorAMQPErrors() {
 }
 
 func (provider *Provider) Exit() error {
-	close(provider.exit)
-
 	err := provider.initChannel.Close()
 	if err != nil {
 		return err

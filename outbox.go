@@ -60,13 +60,13 @@ func (outbox *outbox) init() error {
 				create_at datetime(3) null
 			);`
 
-	n, err := outbox.db.Exec(initSql)
+	_, err := outbox.db.Exec(initSql)
 
 	if err != nil {
 		outbox.logger.WithError(err).Error("Migrations error")
 		return err
 	}
-	outbox.logger.Infof("Applied %d migrations!\n", n)
+	outbox.logger.Infof("Applied  migrations!")
 
 	if outbox.bus.opt.PurgeOnStartup {
 		purgeSql := "delete from " + outbox.name
@@ -75,7 +75,8 @@ func (outbox *outbox) init() error {
 			outbox.logger.WithError(err).Error("Purge error")
 			return err
 		}
-		outbox.logger.Infof("Applied %d purge!\n", n)
+		count, _ := n.RowsAffected()
+		outbox.logger.Infof("Applied %d purge!", count)
 	}
 
 	return nil
