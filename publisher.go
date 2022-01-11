@@ -6,17 +6,12 @@ import (
 
 	"github.com/xyctruth/final/message"
 
-	"github.com/xyctruth/final/mq"
-
 	"github.com/sirupsen/logrus"
 )
 
-// publisher 启动后循环从 outbox 中获取未接收到ack的消息，然后发送到 publisher 中
+// publisher Post a message to the message queue
 type publisher struct {
-	mqProvider mq.IProvider
-	logger     *logrus.Entry
-
-	outbox *outbox
+	logger *logrus.Entry
 
 	publishMutex sync.Mutex
 	confirmMutex sync.Mutex
@@ -26,25 +21,25 @@ type publisher struct {
 	nack     chan uint64
 	pending  map[uint64]interface{}
 	sequence uint64
+	bus      *Bus
 }
 
-func newPublisher(mqProvider mq.IProvider, outbox *outbox, logger *logrus.Entry) *publisher {
+func newPublisher(bus *Bus) *publisher {
 	publisher := &publisher{
-		logger: logger.WithFields(logrus.Fields{
+		logger: bus.logger.WithFields(logrus.Fields{
 			"module": "publisher",
 		}),
-		pending:    make(map[uint64]interface{}),
-		ack:        make(chan uint64, 10000),
-		nack:       make(chan uint64, 10000),
-		ackers:     make([]*acker, 0),
-		mqProvider: mqProvider,
-		outbox:     outbox,
+		pending: make(map[uint64]interface{}),
+		ack:     make(chan uint64, 10000),
+		nack:    make(chan uint64, 10000),
+		ackers:  make([]*acker, 0),
+		bus:     bus,
 	}
 	return publisher
 }
 
 func (publisher *publisher) Start(ctx context.Context) error {
-	publisher.mqProvider.NotifyConfirm(publisher.ack, publisher.nack)
+	publisher.bus.mqProvider.NotifyConfirm(publisher.ack, publisher.nack)
 
 	publisher.logger.Info("Publisher start success")
 
@@ -66,7 +61,7 @@ func (publisher *publisher) publish(msgs ...*message.Message) {
 	defer publisher.publishMutex.Unlock()
 
 	for _, msg := range msgs {
-		err := publisher.mqProvider.Publish(msg)
+		err := publisher.bus.mqProvider.Publish(msg)
 		if err != nil {
 			publisher.logger.WithError(err).Error("mqProvider publish failure")
 			continue
@@ -97,7 +92,7 @@ func (publisher *publisher) confirm(ack uint64) error {
 		}()
 	}
 
-	if err := publisher.outbox.done(nil, recordID); err != nil {
+	if err := publisher.bus.outbox.done(nil, recordID); err != nil {
 		publisher.logger.WithError(err).
 			WithField("ack", ack).
 			WithField("recordID", recordID).

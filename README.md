@@ -6,7 +6,7 @@
 
 ### 初始化Bus
 ```go
-db, err := sql.Open("mysql", "root:xLrFGAzed3@tcp(localhost:3306)/final_test?parseTime=true&loc=Asia%2FShanghai&charset=utf8mb4")
+db, _ := sql.Open("mysql", "root:xLrFGAzed3@tcp(localhost:3306)/final_test?parseTime=true&loc=Asia%2FShanghai&charset=utf8mb4")
 mq, _ := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
 bus := final.New("svc_name", db, mq)
 ```
@@ -26,7 +26,7 @@ if err != nil {
 }
 ```
 
-### 使用confirm ack
+### Confirm 发送
 
 ```go
 err := bus.Publish("topic1", "handler1", msgBytes, message.WithConfirm(true))
@@ -35,7 +35,7 @@ if err != nil {
 }
 ```
 
-### 使用confirm ack 并关联本地事务
+### Confirm 并关联本地事务
 
 ```go
 gormTX := example.NewDB().Begin()

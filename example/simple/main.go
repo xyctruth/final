@@ -19,7 +19,7 @@ func main() {
 func send() {
 	db := example.NewSqlDB()
 	mq, _ := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
-	bus := final.New("send_svc", db, mq)
+	bus := final.New("send_svc", db, mq, final.DefaultOptions())
 	bus.Start()
 	defer bus.Shutdown()
 	for true {
@@ -36,7 +36,7 @@ func send() {
 func receive() {
 	db, _ := example.NewDB().DB()
 	mq, _ := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
-	bus := final.New("receive_svc", db, mq)
+	bus := final.New("receive_svc", db, mq, final.DefaultOptions())
 	bus.Topic("topic1").Middleware(example.Middleware1, example.Middleware2).Handler("handler1", example.Handler1)
 	bus.Start()
 	defer bus.Shutdown()

@@ -3,37 +3,32 @@ package final
 import (
 	"context"
 
-	"github.com/xyctruth/final/message"
-
-	"github.com/xyctruth/final/mq"
-
 	"github.com/sirupsen/logrus"
+	"github.com/xyctruth/final/message"
 )
 
 //  subscriber 启动 SubscriberConfig.Num 个 goroutine 接收 sender的消息后 使用router处理消息
 type subscriber struct {
-	mqProvider mq.IProvider
-	router     *router
-	logger     *logrus.Entry
-	id         string
+	logger *logrus.Entry
+	id     string
+	bus    *Bus
 }
 
-func newSubscriber(id string, mqProvider mq.IProvider, router *router, logger *logrus.Entry) *subscriber {
+func newSubscriber(id string, bus *Bus) *subscriber {
 	s := &subscriber{
-		logger: logger.WithFields(logrus.Fields{
+		logger: bus.logger.WithFields(logrus.Fields{
 			"module":        "subscriber",
 			"subscriber_id": id,
 		}),
-		mqProvider: mqProvider,
-		router:     router,
-		id:         id,
+		id:  id,
+		bus: bus,
 	}
 	return s
 }
 
 func (subscriber *subscriber) Start(ctx context.Context) error {
 	msgs := make(chan *message.Message)
-	err := subscriber.mqProvider.Subscribe(context.Background(), subscriber.id, msgs)
+	err := subscriber.bus.mqProvider.Subscribe(context.Background(), subscriber.id, msgs)
 	if err != nil {
 		subscriber.logger.WithError(err).Error("Subscriber start failure")
 		return err
@@ -56,7 +51,7 @@ func (subscriber *subscriber) Start(ctx context.Context) error {
 }
 
 func (subscriber *subscriber) processMessage(msg *message.Message) {
-	err := subscriber.router.handle(msg)
+	err := subscriber.bus.router.handle(msg)
 	if err != nil {
 		msg.Reject()
 		subscriber.logger.WithError(err).Error("Handle failure")

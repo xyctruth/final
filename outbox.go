@@ -1,6 +1,7 @@
 package final
 
 import (
+	"context"
 	"database/sql"
 	"time"
 
@@ -15,19 +16,56 @@ type outbox struct {
 	logger  *logrus.Entry
 	svcName string
 	name    string
+	bus     *Bus
 }
 
 // 初始化db发件箱
-func newOutBox(svcName string, db *sql.DB, logger *logrus.Entry) *outbox {
+func newOutBox(svcName string, bus *Bus) *outbox {
 	outbox := &outbox{
-		db: db,
-		logger: logger.WithFields(logrus.Fields{
+		db:  bus.db,
+		bus: bus,
+		logger: bus.logger.WithFields(logrus.Fields{
 			"module": "outbox",
 		}),
 		svcName: svcName,
 		name:    "final_" + svcName + "_outbox",
 	}
 	return outbox
+}
+
+func (outbox *outbox) Start(ctx context.Context) error {
+	outbox.scanning()
+	outbox.logger.Info("outbox start success")
+	go func() {
+		loop := time.NewTicker(outbox.bus.opt.OutboxScanInterval)
+		for {
+			select {
+			case <-ctx.Done():
+				outbox.logger.Info("outbox stop success")
+				return
+			case <-loop.C:
+				outbox.scanning()
+			}
+		}
+	}()
+	return nil
+}
+
+// scanning scan omission message
+func (outbox *outbox) scanning() {
+	outbox.logger.
+		WithFields(logrus.Fields{
+			"offset":   outbox.bus.opt.OutboxScanOffset,
+			"interval": outbox.bus.opt.OutboxScanInterval}).
+		Info("scanning")
+
+	msgs, err := outbox.take(nil, outbox.bus.opt.OutboxScanOffset)
+	if err != nil {
+		outbox.logger.WithError(err).Error("outbox take record failure")
+	}
+	if msgs != nil && len(msgs) > 0 {
+		outbox.bus.publisher.publish(msgs...)
+	}
 }
 
 func (outbox *outbox) migration() error {

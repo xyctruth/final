@@ -16,24 +16,20 @@ import (
 
 type (
 	Bus struct {
-		svcName string     // svcName 名称
-		config  *BusConfig // Bus config 配置
+		svcName    string  // service name
+		opt        Options // Bus opt
+		db         *sql.DB
+		mqProvider mq.IProvider // mq provider
+		router     *router
 
-		db         *sql.DB      // txProvider 驱动
-		mqProvider mq.IProvider // mqProvider 驱动
-
-		router *router // router 是handler的路由程序，帮助消息的到正确的handler处理
-
-		outbox      *outbox       // outbox，使用db驱动暂存消息，保证事务原子性。使用mq驱动发送&消费消息
-		subscribers []*subscriber // subscriber 启动 SubscriberConfig.Num 个 goroutine 接收mq的消息后 使用router处理消息
-		publisher   *publisher    // publisher 发送消息到mq
-		looper      *looper       // 启动后1个goroutine循环从 outbox 中获取未接收到ack的消息，然后发送到 publisher 中
+		outbox      *outbox       // outbox
+		subscribers []*subscriber // subscriber
+		publisher   *publisher    // publisher
 		ackers      []*acker
-		logger      *logrus.Entry
 
+		logger  *logrus.Entry
 		msgPool sync.Pool
-
-		cancel context.CancelFunc
+		cancel  context.CancelFunc
 	}
 
 	TxBus struct {
@@ -45,7 +41,7 @@ type (
 )
 
 // 初始化Bus
-func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opts ...BusConfigOption) *Bus {
+func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opt Options) *Bus {
 	logger := &logrus.Logger{
 		Out: os.Stdout,
 		Formatter: &logrus.TextFormatter{
@@ -59,52 +55,31 @@ func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opts ...BusConfigO
 
 	logEntry := logger.WithField("final", svcName)
 
-	// init Bus Config
-	config := DefaultBusConfig()
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	router := newRouter()
-
-	// create outbox
-	outbox := newOutBox(svcName, db, logEntry)
-
-	// create subscribers
-	subscribers := make([]*subscriber, 0, config.SubscriberConfig.Num)
-	for i := uint32(0); i < config.SubscriberConfig.Num; i++ {
-		subscribers = append(
-			subscribers,
-			newSubscriber(fmt.Sprintf("%s_subscribers_%d", svcName, i), mqProvider, router, logEntry),
-		)
-	}
-
-	// create publisher
-	publisher := newPublisher(mqProvider, outbox, logEntry)
-
-	// create looper
-	looper := newLooper(outbox, publisher, config.LooperConfig, logEntry)
-
-	// create acker
-	ackers := make([]*acker, 0, config.AckerConfig.Num)
-	for i := uint32(0); i < config.AckerConfig.Num; i++ {
-		acker := newAcker(fmt.Sprintf("%s_acker_%d", svcName, i), outbox, publisher, logEntry)
-		ackers = append(ackers, acker)
-	}
-
 	var bus = &Bus{
 		svcName:    svcName,
 		db:         db,
 		mqProvider: mqProvider,
-		config:     config,
+		opt:        opt,
+		logger:     logEntry,
+		router:     newRouter(),
+	}
 
-		logger:      logEntry,
-		router:      router,
-		outbox:      outbox,
-		subscribers: subscribers,
-		publisher:   publisher,
-		looper:      looper,
-		ackers:      ackers,
+	// create outbox
+	bus.outbox = newOutBox(svcName, bus)
+
+	// create subscribers
+	bus.subscribers = make([]*subscriber, 0, bus.opt.SubscriberNum)
+	for i := 0; i < bus.opt.SubscriberNum; i++ {
+		bus.subscribers = append(bus.subscribers, newSubscriber(fmt.Sprintf("%s_subscribers_%d", svcName, i), bus))
+	}
+
+	// create publisher
+	bus.publisher = newPublisher(bus)
+
+	// create acker
+	bus.ackers = make([]*acker, 0, bus.opt.AckerNum)
+	for i := 0; i < bus.opt.AckerNum; i++ {
+		bus.ackers = append(bus.ackers, newAcker(fmt.Sprintf("%s_acker_%d", svcName, i), bus))
 	}
 
 	bus.msgPool.New = func() interface{} {
@@ -140,11 +115,6 @@ func (bus *Bus) Start() error {
 	}
 
 	err = bus.publisher.Start(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = bus.looper.Start(ctx)
 	if err != nil {
 		return err
 	}
