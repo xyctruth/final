@@ -2,6 +2,9 @@ package example
 
 import (
 	"database/sql"
+	"fmt"
+
+	"github.com/vmihailenco/msgpack/v5"
 
 	"github.com/xyctruth/final"
 	"gorm.io/driver/mysql"
@@ -43,4 +46,16 @@ func Middleware2(c *final.Context) error {
 type Test struct {
 	Id   int64
 	Name string
+}
+
+func Handler1(c *final.Context) error {
+	msg := &DemoMessage{}
+	msgpack.Unmarshal(c.Message.Payload, msg)
+	fmt.Println(msg)
+	return nil
+}
+
+type DemoMessage struct {
+	Type  string
+	Count int64
 }
