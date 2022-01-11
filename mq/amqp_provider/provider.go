@@ -40,14 +40,14 @@ type Provider struct {
 	dlxExchangeName string
 }
 
-func NewProvider(connStr string) (mq.IProvider, error) {
+func NewProvider(connStr string) mq.IProvider {
 	log := &logrus.Logger{}
 	return &Provider{
 		log: log.WithFields(logrus.Fields{
 			"module": "amqp_provider",
 		}),
 		connStr: connStr,
-	}, nil
+	}
 }
 
 func (provider *Provider) Init(ctx context.Context, svcName string, purge bool, topics []string) error {
@@ -127,11 +127,11 @@ func (provider *Provider) Publish(message *message.Message) error {
 	}
 
 	return channel.Publish(
-		message.Topic, //exchange
-		message.Topic, //key
-		false,         //开启强制消息投递（mandatory为设置为true），但消息未被路由至任何一个queue，则回退一条消息到channel.NotifyReturn
-		false,         //当immediate标志位设置为true时，如果exchange在将消息路由到queue(s)时发现对于的queue上么有消费者，那么这条消息不会放入队列中。当与消息routeKey关联的所有queue（一个或者多个）都没有消费者时，该消息会通过basic.return方法返还给生产者。
-		publishing,    //msg
+		message.Topic, // exchange
+		message.Topic, // key
+		false,         // 开启强制消息投递（mandatory为设置为true），但消息未被路由至任何一个queue，则回退一条消息到channel.NotifyReturn
+		false,         // 当immediate标志位设置为true时，如果exchange在将消息路由到queue(s)时发现对于的queue上么有消费者，那么这条消息不会放入队列中。当与消息routeKey关联的所有queue（一个或者多个）都没有消费者时，该消息会通过basic.return方法返还给生产者。
+		publishing,    // msg
 	)
 }
 

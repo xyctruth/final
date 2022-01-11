@@ -7,7 +7,7 @@
 ### 初始化Bus
 ```go
 db, _ := sql.Open("mysql", "root:xLrFGAzed3@tcp(localhost:3306)/final_test?parseTime=true&loc=Asia%2FShanghai&charset=utf8mb4")
-mq, _ := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
+mq := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
 bus := final.New("svc_name", db, mq)
 ```
 
@@ -38,12 +38,12 @@ if err != nil {
 ### Confirm 并关联本地事务
 
 ```go
-gormTX := example.NewDB().Begin()
+tx,_ := db.Begin()
 /* return err rollback，return nil commit */
-bus.Transaction(gormTX.Statement.ConnPool.(*sql.Tx), func(txBus *final.TxBus) error {
-    err := gormTX.Table("test").Create(&example.Test{Name: "aaa"}).Error
+bus.Transaction(tx, func(txBus *final.TxBus) error {
+    _, err := tx.Exec("insert into test (name) VALUE (?)", "123")
     if err != nil {
-    return err
+      return err
     }
     
     err = txBus.Publish("topic1", "handler1", msgBytes)

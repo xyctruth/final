@@ -29,10 +29,7 @@ func NewDB() *sql.DB {
 }
 
 func NewAmqp() mq.IProvider {
-	mq, err := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
-	if err != nil {
-		panic(err)
-	}
+	mq := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
 	return mq
 }
 
