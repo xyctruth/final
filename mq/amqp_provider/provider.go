@@ -19,6 +19,7 @@ type Provider struct {
 
 	log *logrus.Entry
 
+	connStr string
 	// conn
 	conn *amqp.Connection
 	// 初始化channel
@@ -47,25 +48,27 @@ type Provider struct {
 }
 
 func NewProvider(connStr string) (mq.IProvider, error) {
-	conn, err := amqp.DialConfig(connStr, amqp.Config{
-		Heartbeat: 10 * time.Minute,
-	})
-	if err != nil {
-		return nil, err
-	}
+
 	log := &logrus.Logger{}
 	return &Provider{
 		log: log.WithFields(logrus.Fields{
 			"module": "amqp_provider",
 		}),
-		exit: make(chan bool),
-		conn: conn,
+		connStr: connStr,
 	}, nil
 }
 
 func (provider *Provider) Init(svcName string, purge bool, topics []string) error {
 	var err error
+	conn, err := amqp.DialConfig(provider.connStr, amqp.Config{
+		Heartbeat: 10 * time.Minute,
+	})
+	if err != nil {
+		return err
+	}
 
+	provider.conn = conn
+	provider.exit = make(chan bool)
 	provider.purge = purge
 	provider.topics = topics
 	provider.svcName = svcName
@@ -178,27 +181,26 @@ func (provider *Provider) Subscribe(ctx context.Context, consumerTag string, msg
 				case <-provider.exit:
 					return
 				case msgs <- msg:
-					provider.log.WithField("uuid", msg.UUID).Trace("Handler sent to consumer")
+					provider.log.WithField("uuid", msg.UUID).Trace("HandlerName sent to consumer")
 				}
-
 				select {
 				case <-provider.exit:
 					return
 				case <-msg.Acked():
-					provider.log.WithField("uuid", msg.UUID).Trace("Handler Ack")
+					provider.log.WithField("uuid", msg.UUID).Trace("HandlerName Ack")
 					err := delivery.Ack(false)
 					if err != nil {
 						provider.log.WithError(err).Error("Failed ack message")
 					}
 				case <-msg.Rejected():
-					provider.log.WithField("uuid", msg.UUID).Trace("Handler rejectch")
+					provider.log.WithField("uuid", msg.UUID).Trace("HandlerName rejectch")
 					err := delivery.Reject(false)
 					if err != nil {
 						provider.log.WithError(err).Error("Failed reject message")
 					}
 				}
 			case amqpErr, ok := <-channelErrors:
-				provider.log.WithField("amqp_error", amqpErr).Error("Handler Ack")
+				provider.log.WithField("amqp_error", amqpErr).Error("HandlerName Ack")
 				if !ok {
 					return
 				}
@@ -337,4 +339,29 @@ func (provider *Provider) monitorAMQPErrors() {
 			}
 		}
 	}
+}
+
+func (provider *Provider) Exit() error {
+	close(provider.exit)
+
+	err := provider.initChannel.Close()
+	if err != nil {
+		return err
+	}
+
+	err = provider.publishChannel.Close()
+	if err != nil {
+		return err
+	}
+
+	err = provider.publishNoWaitChannel.Close()
+	if err != nil {
+		return err
+	}
+
+	err = provider.conn.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }

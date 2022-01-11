@@ -51,6 +51,36 @@ func (outbox *outbox) Start(ctx context.Context) error {
 	return nil
 }
 
+func (outbox *outbox) init() error {
+	initSql := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
+			(
+				id        bigint auto_increment primary key,
+				message   longblob    null,
+				status    bigint      null,
+				create_at datetime(3) null
+			);`
+
+	n, err := outbox.db.Exec(initSql)
+
+	if err != nil {
+		outbox.logger.WithError(err).Error("Migrations error")
+		return err
+	}
+	outbox.logger.Infof("Applied %d migrations!\n", n)
+
+	if outbox.bus.opt.PurgeOnStartup {
+		purgeSql := "delete from " + outbox.name
+		n, err := outbox.db.Exec(purgeSql)
+		if err != nil {
+			outbox.logger.WithError(err).Error("Purge error")
+			return err
+		}
+		outbox.logger.Infof("Applied %d purge!\n", n)
+	}
+
+	return nil
+}
+
 // scanning scan omission message
 func (outbox *outbox) scanning() {
 	outbox.logger.
@@ -66,25 +96,6 @@ func (outbox *outbox) scanning() {
 	if msgs != nil && len(msgs) > 0 {
 		outbox.bus.publisher.publish(msgs...)
 	}
-}
-
-func (outbox *outbox) migration() error {
-	init := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
-			(
-				id        bigint auto_increment primary key,
-				message   longblob    null,
-				status    bigint      null,
-				create_at datetime(3) null
-			);`
-
-	n, err := outbox.db.Exec(init)
-
-	if err != nil {
-		outbox.logger.WithError(err).Error("migrations error")
-		return err
-	}
-	outbox.logger.Infof("Applied %d migrations!\n", n)
-	return nil
 }
 
 // 暂存消息到db发件箱中

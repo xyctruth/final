@@ -3,6 +3,11 @@ package final
 import (
 	"database/sql"
 
+	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/xyctruth/final/mq"
+	"github.com/xyctruth/final/mq/amqp_provider"
+
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -23,7 +28,21 @@ func NewDB() *sql.DB {
 	return db
 }
 
+func NewAmqp() mq.IProvider {
+	mq, err := amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
+	if err != nil {
+		panic(err)
+	}
+	return mq
+}
+
 type DemoMessage struct {
 	Type  string
-	Count int64
+	Count int
+}
+
+func NewDemoMessage(t string, count int) []byte {
+	msg := DemoMessage{Type: t, Count: count}
+	msgBytes, _ := msgpack.Marshal(msg)
+	return msgBytes
 }

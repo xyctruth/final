@@ -11,4 +11,5 @@ type IProvider interface {
 	Publish(messages *message.Message) error
 	Subscribe(ctx context.Context, consumerTag string, msgs chan *message.Message) error
 	NotifyConfirm(ack, nack chan uint64)
+	Exit() error
 }

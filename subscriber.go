@@ -34,7 +34,6 @@ func (subscriber *subscriber) Start(ctx context.Context) error {
 		return err
 	}
 	subscriber.logger.Info("Subscriber start success")
-
 	go func() {
 		for {
 			select {
@@ -51,6 +50,7 @@ func (subscriber *subscriber) Start(ctx context.Context) error {
 }
 
 func (subscriber *subscriber) processMessage(msg *message.Message) {
+	subscriber.logger.Info("processMessage")
 	err := subscriber.bus.router.handle(msg)
 	if err != nil {
 		msg.Reject()

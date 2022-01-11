@@ -13,7 +13,7 @@ bus := final.New("svc_name", db, mq)
 
 ### 注册消息路由
 ```go
-bus.Topic("topic1").Middleware(example.Middleware1, example.Middleware2).Handler("handler1", Handler1)
+bus.Subscribe("topic1").Middleware(example.Middleware1, example.Middleware2).Handler("handler1", Handler1)
 bus.Start()
 ```
 

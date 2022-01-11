@@ -99,7 +99,7 @@ func (bus *Bus) Start() error {
 		return err
 	}
 
-	err = bus.outbox.migration()
+	err = bus.outbox.init()
 	if err != nil {
 		return err
 	}
@@ -132,12 +132,25 @@ func (bus *Bus) Start() error {
 
 func (bus *Bus) Shutdown() error {
 	bus.cancel()
+	err := bus.mqProvider.Exit()
+	if err != nil {
+		bus.logger.WithError(err).Error("Bus stop error!!!")
+	}
 	bus.logger.Info("Bus stop !!!")
-	return nil
+	return err
 }
 
-func (bus *Bus) Topic(name string) *routerTopic {
-	return bus.topic(name)
+func (bus *Bus) Subscribe(topic string) *routerTopic {
+	if topic, ok := bus.router.topics[topic]; ok {
+		return topic
+	}
+
+	newTopic := &routerTopic{
+		name: topic,
+		bus:  bus,
+	}
+	bus.router.topics[topic] = newTopic
+	return newTopic
 }
 
 func (bus *Bus) Publish(topic string, handler string, payload []byte, opts ...message.MessagePolicyOption) error {
@@ -228,19 +241,6 @@ func (txBus *TxBus) publish() {
 	}()
 }
 
-func (bus *Bus) topic(name string) *routerTopic {
-	if topic, ok := bus.router.topics[name]; ok {
-		return topic
-	}
-
-	newTopic := &routerTopic{
-		name: name,
-		bus:  bus,
-	}
-	bus.router.topics[name] = newTopic
-	return newTopic
-}
-
 func (bus *Bus) initProvider() error {
 	var err error
 
@@ -253,13 +253,13 @@ func (bus *Bus) initProvider() error {
 		topics = append(topics, topic)
 	}
 
-	err = bus.mqProvider.Init(bus.svcName, false, topics)
+	err = bus.mqProvider.Init(bus.svcName, bus.opt.PurgeOnStartup, topics)
 	if err != nil {
 		return err
 	}
 
 	if bus.db == nil {
-		return errors.New("txProvider is nil")
+		return errors.New("db is nil")
 	}
 
 	return nil

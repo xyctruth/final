@@ -1,12 +1,15 @@
 package final
 
-import "github.com/xyctruth/final/message"
+import (
+	"github.com/xyctruth/final/message"
+)
 
 type (
 	Context struct {
-		Topic   string
-		Key     string
-		Message *message.Message
+		Topic       string
+		HandlerName string
+		Key         string
+		Message     *message.Message
 		// middleware and handler
 		handlers []HandlerFunc
 		index    int
@@ -14,15 +17,12 @@ type (
 )
 
 func newContext(m *message.Message, handlers []HandlerFunc) *Context {
-	topic := m.Topic
-	key := m.Handler
-
 	return &Context{
-		Topic:    topic,
-		Key:      key,
-		Message:  m,
-		handlers: handlers,
-		index:    -1,
+		Topic:       m.Topic,
+		HandlerName: m.Handler,
+		Message:     m,
+		handlers:    handlers,
+		index:       -1,
 	}
 }
 
@@ -39,11 +39,8 @@ func (c *Context) Next() error {
 }
 
 func (c *Context) Reset(m *message.Message, handlers []HandlerFunc) {
-	topic := m.Topic
-	key := m.Handler
-
-	c.Topic = topic
-	c.Key = key
+	c.Topic = m.Topic
+	c.HandlerName = m.Handler
 	c.Message = m
 	c.handlers = handlers
 	c.index = -1

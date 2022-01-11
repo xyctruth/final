@@ -2,6 +2,7 @@ package final
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/xyctruth/final/message"
@@ -32,7 +33,7 @@ func (topic *routerTopic) Middleware(middlewares ...HandlerFunc) *routerTopic {
 }
 
 func (topic *routerTopic) Handler(name string, handler HandlerFunc) {
-	topic.bus.router.addRoute(name, handler)
+	topic.bus.router.addRoute(topic.name, name, handler)
 }
 
 func newRouter() *router {
@@ -47,15 +48,19 @@ func newRouter() *router {
 	return s
 }
 
-func (r *router) addRoute(name string, handler HandlerFunc) {
-	r.handlers[name] = handler
+func (r *router) addRoute(topic, handlerName string, handler HandlerFunc) {
+	r.handlers[r.buildKey(topic, handlerName)] = handler
 }
 
-func (r *router) getRoute(name string) HandlerFunc {
-	if handler, ok := r.handlers[name]; ok {
+func (r *router) getRoute(topic, handlerName string) HandlerFunc {
+	if handler, ok := r.handlers[r.buildKey(topic, handlerName)]; ok {
 		return handler
 	}
 	return nil
+}
+
+func (r *router) buildKey(topic, handlerName string) string {
+	return fmt.Sprintf("%s/%s", topic, handlerName)
 }
 
 func (r *router) handle(msg *message.Message) error {
@@ -65,9 +70,11 @@ func (r *router) handle(msg *message.Message) error {
 	}
 
 	c := r.ctxPool.Get().(*Context)
+	defer r.ctxPool.Put(c)
+
 	c.Reset(msg, middlewares)
 
-	handle := r.getRoute(c.Key)
+	handle := r.getRoute(c.Topic, c.HandlerName)
 	if handle != nil {
 		c.handlers = append(c.handlers, handle)
 	} else {
@@ -76,8 +83,6 @@ func (r *router) handle(msg *message.Message) error {
 		})
 	}
 	err := c.Next()
-
-	r.ctxPool.Put(c)
 	return err
 }
 

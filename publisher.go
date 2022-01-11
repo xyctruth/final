@@ -12,7 +12,6 @@ import (
 // publisher 发送消息到消息队列中
 type publisher struct {
 	logger   *logrus.Entry
-	ackers   []*acker
 	ack      chan uint64
 	nack     chan uint64
 	pending  sync.Map
@@ -25,16 +24,15 @@ func newPublisher(bus *Bus) *publisher {
 		logger: bus.logger.WithFields(logrus.Fields{
 			"module": "publisher",
 		}),
-		ack:    make(chan uint64, 10000),
-		nack:   make(chan uint64, 10000),
-		ackers: make([]*acker, 0),
-		bus:    bus,
+
+		bus: bus,
 	}
 }
 
 func (p *publisher) Start(ctx context.Context) error {
+	p.ack = make(chan uint64, 10000)
+	p.nack = make(chan uint64, 10000)
 	p.bus.mqProvider.NotifyConfirm(p.ack, p.nack)
-
 	p.logger.Info("Publisher start success")
 
 	go func() {
