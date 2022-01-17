@@ -12,9 +12,9 @@ type (
 		Topic   string
 		Handler string
 		SvcName string
-		Header  MessageHeader
+		Header  Header
 		Payload []byte
-		Policy  *MessagePolicy
+		Policy  *Policy
 
 		AckChan    chan struct{} `msgpack:"-"`
 		RejectChan chan struct{} `msgpack:"-"`
@@ -22,10 +22,10 @@ type (
 		mutex sync.Mutex
 	}
 
-	MessageHeader map[string]interface{}
+	Header map[string]interface{}
 )
 
-func NewMessage(uuid, topic, handler string, payload []byte, opts ...MessagePolicyOption) *Message {
+func NewMessage(uuid, topic, handler string, payload []byte, opts ...PolicyOption) *Message {
 	if uuid == "" {
 		uuid = uuidtools.NewV4().String()
 	}
@@ -47,7 +47,7 @@ func NewMessage(uuid, topic, handler string, payload []byte, opts ...MessagePoli
 	return msg
 }
 
-func (m *Message) Reset(uuid, topic, handler string, payload []byte, opts ...MessagePolicyOption) {
+func (m *Message) Reset(uuid, topic, handler string, payload []byte, opts ...PolicyOption) {
 	if uuid == "" {
 		uuid = uuidtools.NewV4().String()
 	}
@@ -83,13 +83,13 @@ func (m *Message) Rejected() <-chan struct{} {
 	return m.RejectChan
 }
 
-func (m MessageHeader) Get(key string) interface{} {
+func (m Header) Get(key string) interface{} {
 	if v, ok := m[key]; ok {
 		return v
 	}
 	return ""
 }
 
-func (m MessageHeader) Set(key string, value interface{}) {
+func (m Header) Set(key string, value interface{}) {
 	m[key] = value
 }

@@ -153,7 +153,7 @@ func (bus *Bus) Subscribe(topic string) *routerTopic {
 	return newTopic
 }
 
-func (bus *Bus) Publish(topic string, handler string, payload []byte, opts ...message.MessagePolicyOption) error {
+func (bus *Bus) Publish(topic string, handler string, payload []byte, opts ...message.PolicyOption) error {
 	var err error
 
 	msg := bus.msgPool.Get().(*message.Message)
@@ -199,7 +199,7 @@ func (bus *Bus) Transaction(tx *sql.Tx, fc func(txBus *TxBus) error) error {
 	return txBus.Commit()
 }
 
-func (txBus *TxBus) Publish(topic string, handler string, payload []byte, opts ...message.MessagePolicyOption) error {
+func (txBus *TxBus) Publish(topic string, handler string, payload []byte, opts ...message.PolicyOption) error {
 	txBus.mutex.Lock()
 	defer txBus.mutex.Unlock()
 

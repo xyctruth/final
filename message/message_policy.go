@@ -4,16 +4,16 @@ import (
 	"time"
 )
 
-//MessagePolicy BusMessage config
-type MessagePolicy struct {
+// Policy MessagePolicy BusMessage config
+type Policy struct {
 	Confirm bool
 	Durable bool
 	TTL     time.Duration
 	Delay   int64
 }
 
-func DefaultMessagePolicy() *MessagePolicy {
-	return &MessagePolicy{
+func DefaultMessagePolicy() *Policy {
+	return &Policy{
 		Confirm: true,
 		Durable: true,
 		TTL:     0,
@@ -21,33 +21,33 @@ func DefaultMessagePolicy() *MessagePolicy {
 
 }
 
-type MessagePolicyOption func(c *MessagePolicy)
+type PolicyOption func(c *Policy)
 
-// 开启Confirm，决定消息是否一定发送成功。默认不开启
-func WithConfirm(use bool) MessagePolicyOption {
-	return func(c *MessagePolicy) {
+// WithConfirm 开启Confirm，决定消息是否一定发送成功。默认不开启
+func WithConfirm(use bool) PolicyOption {
+	return func(c *Policy) {
 		c.Confirm = use
 	}
 
 }
 
-// 是否消息持久化，默认开启
-func WithDurable(use bool) MessagePolicyOption {
-	return func(c *MessagePolicy) {
+// WithDurable 是否消息持久化，默认开启
+func WithDurable(use bool) PolicyOption {
+	return func(c *Policy) {
 		c.Durable = use
 	}
 }
 
-// 关联消息过期时间 默认
-func WithTTL(duration time.Duration) MessagePolicyOption {
-	return func(c *MessagePolicy) {
+// WithTTL 关联消息过期时间 默认
+func WithTTL(duration time.Duration) PolicyOption {
+	return func(c *Policy) {
 		c.TTL = duration
 	}
 }
 
-// 延时队列
-func WithDelay(delay int64) MessagePolicyOption {
-	return func(c *MessagePolicy) {
+// WithDelay 延时队列
+func WithDelay(delay int64) PolicyOption {
+	return func(c *Policy) {
 		c.Delay = delay
 	}
 
