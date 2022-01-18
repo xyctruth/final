@@ -1,9 +1,8 @@
-package final
+package _example
 
 import (
 	"database/sql"
 
-	"github.com/vmihailenco/msgpack/v5"
 	"github.com/xyctruth/final/mq"
 	"github.com/xyctruth/final/mq/amqp_provider"
 	"gorm.io/driver/mysql"
@@ -18,7 +17,7 @@ func NewDB() *sql.DB {
 	return db
 }
 
-func NewMQProvider() mq.IProvider {
+func NewAmqp() mq.IProvider {
 	return amqp_provider.NewProvider("amqp://user:62qJWqxMVV@localhost:5672/xyc_final")
 }
 
@@ -30,13 +29,18 @@ func NewGormDB() *gorm.DB {
 	return gormDB
 }
 
-type DemoMessage struct {
-	Type  string
-	Count int
+func InitLocalBusiness() {
+	err := NewGormDB().AutoMigrate(&LocalBusiness{})
+	if err != nil {
+		return
+	}
 }
 
-func NewDemoMessage(t string, count int) []byte {
-	msg := DemoMessage{Type: t, Count: count}
-	msgBytes, _ := msgpack.Marshal(msg)
-	return msgBytes
+type LocalBusiness struct {
+	Id     int64
+	Remark string
+}
+
+func (LocalBusiness) TableName() string {
+	return "local_business"
 }

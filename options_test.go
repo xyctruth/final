@@ -10,11 +10,11 @@ import (
 func TestOptions(t *testing.T) {
 	opt := DefaultOptions()
 
-	opt = opt.WithAckerNum(1)
-	require.Equal(t, 1, opt.AckerNum)
+	opt = opt.WithNumAcker(1)
+	require.Equal(t, 1, opt.NumAcker)
 
-	opt = opt.WithSubscriberNum(1)
-	require.Equal(t, 1, opt.SubscriberNum)
+	opt = opt.WithNumSubscriber(1)
+	require.Equal(t, 1, opt.NumSubscriber)
 
 	opt = opt.WithOutboxScanInterval(1 * time.Second)
 	require.Equal(t, 1*time.Second, opt.OutboxScanInterval)

@@ -16,16 +16,22 @@ import (
 
 type (
 	Bus struct {
-		svcName    string  // service name
-		opt        Options // Bus Options
-		db         *sql.DB
-		mqProvider mq.IProvider // mq provider
+		svcName string
+
+		// Bus Options  默认设置 DefaultOptions()
+		opt Options
+
+		// 本地消息表使用到的db
+		db *sql.DB
+		// mq.IProvider  mq驱动实现，用于与消息队列交互
+		// amqp 的实现 amqp_provider.Provider
+		mqProvider mq.IProvider
 
 		router      *router       // router 是handler的路由程序，帮助消息的到正确的handler处理
 		outbox      *outbox       // outbox db发件箱，在未收到ack前消息会保存在 outbox 中
-		subscribers []*subscriber // subscriber 启动 Options.SubscriberNum 个 goroutine 订阅消息队列中的消息 使用 router 处理消息
+		subscribers []*subscriber // subscriber 启动 Options.NumSubscriber 个 goroutine 订阅消息队列中的消息 使用 router 处理消息
 		publisher   *publisher    // publisher 发送消息到消息队列中
-		ackers      []*acker      // acker 启动 Options.AckerNum 个goroutine接收消息队列ack消息后，Done掉 outbox 中的消息记录
+		ackers      []*acker      // acker 启动 Options.NumAcker 个goroutine接收消息队列ack消息后，Done掉 outbox 中的消息记录
 
 		logger  *logrus.Entry
 		msgPool sync.Pool
@@ -40,7 +46,10 @@ type (
 	}
 )
 
-// 初始化Bus
+// New 初始化Bus
+// db sql.DB 本地消息表使用到的db
+// mqProvider mq.IProvider mq驱动实现，用于与消息队列交互, amqp 的实现 amqp_provider.Provider
+//
 func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opt Options) *Bus {
 	logger := &logrus.Logger{
 		Out: os.Stdout,
@@ -68,8 +77,8 @@ func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opt Options) *Bus 
 	bus.outbox = newOutBox(svcName, bus)
 
 	// create subscribers
-	bus.subscribers = make([]*subscriber, 0, bus.opt.SubscriberNum)
-	for i := 0; i < bus.opt.SubscriberNum; i++ {
+	bus.subscribers = make([]*subscriber, 0, bus.opt.NumSubscriber)
+	for i := 0; i < bus.opt.NumSubscriber; i++ {
 		bus.subscribers = append(bus.subscribers, newSubscriber(fmt.Sprintf("%s_subscribers_%d", svcName, i), bus))
 	}
 
@@ -77,8 +86,8 @@ func New(svcName string, db *sql.DB, mqProvider mq.IProvider, opt Options) *Bus 
 	bus.publisher = newPublisher(bus)
 
 	// create acker
-	bus.ackers = make([]*acker, 0, bus.opt.AckerNum)
-	for i := 0; i < bus.opt.AckerNum; i++ {
+	bus.ackers = make([]*acker, 0, bus.opt.NumAcker)
+	for i := 0; i < bus.opt.NumAcker; i++ {
 		bus.ackers = append(bus.ackers, newAcker(fmt.Sprintf("%s_acker_%d", svcName, i), bus))
 	}
 
@@ -265,7 +274,7 @@ func (bus *Bus) initProvider(ctx context.Context) error {
 	return nil
 }
 
-func (engine *Bus) allocateMessage() *message.Message {
+func (bus *Bus) allocateMessage() *message.Message {
 	return &message.Message{
 		AckChan:    make(chan struct{}),
 		RejectChan: make(chan struct{}),
