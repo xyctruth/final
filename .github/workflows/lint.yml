@@ -1,4 +1,4 @@
-name: Server-Lint
+name: Lint
 
 on:
   push:
