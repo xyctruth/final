@@ -49,7 +49,7 @@ func send() {
 			panic(err)
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -85,7 +85,7 @@ func sendGorm() {
 			panic(err)
 		}
 
-		time.Sleep(2 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
 
