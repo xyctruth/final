@@ -50,7 +50,7 @@ func TestPurgeOnStartup(t *testing.T) {
 			require.Equal(t, nil, err)
 			err = bus2.Publish("PurgeOnStartup", "handler1", NewDemoMessage("message", 100), message.WithConfirm(true))
 			require.Equal(t, nil, err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			err = bus2.Shutdown()
 			require.Equal(t, nil, err)
 
@@ -58,7 +58,7 @@ func TestPurgeOnStartup(t *testing.T) {
 			count = 0
 			err = bus1.Start()
 			require.Equal(t, nil, err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			err = bus1.Shutdown()
 			require.Equal(t, nil, err)
 			require.Equal(t, tt.want, count)
@@ -94,7 +94,7 @@ func TestPublish_SelfReceive(t *testing.T) {
 	err = bus.Publish("Publish_SelfReceive", "handler1", msgBytes, message.WithConfirm(true))
 	require.Equal(t, nil, err)
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 	err = bus.Shutdown()
 	require.Equal(t, nil, err)
 	require.Equal(t, 2, count)
@@ -160,7 +160,7 @@ func TestSqlTxMessage(t *testing.T) {
 			var remark string
 			err = db.QueryRow("SELECT * FROM local_business WHERE ID = ?", localBusiness.Id).Scan(&id, &remark)
 			require.Equal(t, tt.wantErr, err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			err = bus.Shutdown()
 			require.Equal(t, nil, err)
 			require.Equal(t, tt.wantCount, count)
@@ -230,7 +230,7 @@ func TestGormTxMessage(t *testing.T) {
 			queryLocalBusiness := _example.LocalBusiness{}
 			err = gormDB.First(&queryLocalBusiness, localBusiness.Id).Error
 			require.Equal(t, tt.wantErr, err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 			err = bus.Shutdown()
 			require.Equal(t, nil, err)
 			require.Equal(t, tt.wantCount, count)
