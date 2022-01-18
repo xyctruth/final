@@ -15,7 +15,6 @@ type (
 	routerTopic struct {
 		name        string
 		middlewares []HandlerFunc
-		parent      *routerTopic
 		bus         *Bus
 	}
 

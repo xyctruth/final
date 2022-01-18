@@ -192,11 +192,7 @@ func (bus *Bus) WithTx(tx *sql.Tx) *TxBus {
 }
 
 func (bus *Bus) Transaction(tx *sql.Tx, fc func(txBus *TxBus) error) error {
-	txBus := &TxBus{
-		bus:  bus,
-		tx:   tx,
-		msgs: make([]*message.Message, 0),
-	}
+	txBus := bus.WithTx(tx)
 
 	err := fc(txBus)
 

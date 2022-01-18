@@ -37,12 +37,10 @@ func (p *publisher) Start(ctx context.Context) error {
 	p.logger.Info("Publisher start success")
 
 	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				p.logger.Info("Publisher stop success")
-				return
-			}
+		select {
+		case <-ctx.Done():
+			p.logger.Info("Publisher stop success")
+			return
 		}
 	}()
 
@@ -70,7 +68,6 @@ func (p *publisher) confirm(ack uint64) error {
 	p.logger.
 		WithField("ack", ack).
 		WithField("recordID", recordID).
-		WithField("pending", p.pending).
 		Info("ack received")
 
 	if recordID == nil {

@@ -16,16 +16,6 @@ type (
 	}
 )
 
-func newContext(m *message.Message, handlers []HandlerFunc) *Context {
-	return &Context{
-		Topic:       m.Topic,
-		HandlerName: m.Handler,
-		Message:     m,
-		handlers:    handlers,
-		index:       -1,
-	}
-}
-
 func (c *Context) Next() error {
 	c.index++
 	s := len(c.handlers)

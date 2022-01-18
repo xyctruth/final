@@ -1,12 +1,11 @@
-package amqp_provider
+package amqp
 
 import (
 	"strconv"
 	"time"
 
-	"github.com/xyctruth/final/message"
-
 	"github.com/streadway/amqp"
+	"github.com/xyctruth/final/message"
 )
 
 func NewMessageFromDelivery(delivery amqp.Delivery) *message.Message {

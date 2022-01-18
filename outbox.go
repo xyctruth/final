@@ -3,6 +3,7 @@ package final
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -52,7 +53,7 @@ func (outbox *outbox) Start(ctx context.Context) error {
 }
 
 func (outbox *outbox) init() error {
-	initSql := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
+	initSQL := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
 			(
 				id        bigint auto_increment primary key,
 				message   longblob    null,
@@ -60,7 +61,7 @@ func (outbox *outbox) init() error {
 				create_at datetime(3) null
 			);`
 
-	_, err := outbox.db.Exec(initSql)
+	_, err := outbox.db.Exec(initSQL)
 
 	if err != nil {
 		outbox.logger.WithError(err).Error("Migrations error")
@@ -69,8 +70,8 @@ func (outbox *outbox) init() error {
 	outbox.logger.Infof("Applied  migrations!")
 
 	if outbox.bus.opt.PurgeOnStartup {
-		purgeSql := "delete from " + outbox.name
-		n, err := outbox.db.Exec(purgeSql)
+		purgeSQL := "delete from " + outbox.name
+		n, err := outbox.db.Exec(purgeSQL)
 		if err != nil {
 			outbox.logger.WithError(err).Error("Purge error")
 			return err
@@ -94,7 +95,7 @@ func (outbox *outbox) scanning() {
 	if err != nil {
 		outbox.logger.WithError(err).Error("outbox take record failure")
 	}
-	if msgs != nil && len(msgs) > 0 {
+	if len(msgs) > 0 {
 		outbox.bus.publisher.publish(msgs...)
 	}
 }
@@ -138,17 +139,17 @@ func (outbox *outbox) done(tx *sql.Tx, id interface{}) error {
 
 // 获取没有收到ack的消息，准备重新发送到mq中
 func (outbox *outbox) take(tx *sql.Tx, offset int64) ([]*message.Message, error) {
-	msgs := make([]*message.Message, 0, 0)
+	msgs := make([]*message.Message, 0)
 
 	var datetime = time.Now().Add(-1 * time.Minute)
 
 	err := outbox.transaction(tx, func(tx *sql.Tx) error {
 		rows, err := tx.Query(
-			" SELECT * FROM "+outbox.name+" WHERE  status = ? AND create_at < ? ORDER BY id ASC LIMIT ? FOR UPDATE",
-			0, datetime, offset)
+			" SELECT * FROM ? WHERE  status = ? AND create_at < ? ORDER BY id ASC LIMIT ? FOR UPDATE",
+			outbox.name, 0, datetime, offset)
 
 		if err != nil {
-			if err == sql.ErrNoRows {
+			if errors.Is(err, sql.ErrNoRows) {
 				return nil
 			}
 			return err

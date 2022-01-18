@@ -1,16 +1,14 @@
-package amqp_provider
+package amqp
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime/debug"
 	"time"
 
-	"github.com/xyctruth/final/message"
-
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/xyctruth/final/message"
 	"github.com/xyctruth/final/mq"
 )
 
@@ -305,7 +303,7 @@ func (provider *Provider) bindQueue(queue, topic, exchange string) error {
 func (provider *Provider) monitorAMQPErrors(ctx context.Context, connErrors chan *amqp.Error, connBlocks chan amqp.Blocking, channelErrors chan *amqp.Error) {
 	defer func() {
 		if p := recover(); p != nil {
-			err := errors.New(fmt.Sprintf("%v\n%s", p, debug.Stack()))
+			err := fmt.Errorf("%v\n%s", p, debug.Stack())
 			provider.log.WithError(err).Error("panic monitor amqp errors")
 		}
 	}()
