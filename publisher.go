@@ -5,9 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/xyctruth/final/message"
-
 	"github.com/sirupsen/logrus"
+	"github.com/xyctruth/final/message"
 )
 
 // publisher 发送消息到消息队列中
@@ -37,11 +36,8 @@ func (p *publisher) Start(ctx context.Context) error {
 	p.logger.Info("Publisher start success")
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			p.logger.Info("Publisher stop success")
-			return
-		}
+		<-ctx.Done()
+		p.logger.Info("Publisher stop success")
 	}()
 
 	return nil

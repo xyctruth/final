@@ -8,9 +8,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/xyctruth/final/message"
-
 	"github.com/sirupsen/logrus"
+	"github.com/xyctruth/final/message"
 	"github.com/xyctruth/final/mq"
 )
 
@@ -197,7 +196,10 @@ func (bus *Bus) Transaction(tx *sql.Tx, fc func(txBus *TxBus) error) error {
 	err := fc(txBus)
 
 	if err != nil {
-		txBus.RollBack()
+		rollbackErr := txBus.RollBack()
+		if rollbackErr != nil {
+			bus.logger.WithError(rollbackErr).Error("tx rollback error")
+		}
 		return err
 	}
 

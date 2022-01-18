@@ -27,8 +27,8 @@ jobs:
 
       - name: Test
         run: |
-          export MYSQL_CONN_STR = {{ secrets.MYSQLCONNSTR }}
-          export AMQP_CONN_STR = {{ secrets.AMQPCONNSTR }}
+          export MYSQL_CONN_STR=${{ secrets.MYSQLCONNSTR }}
+          export AMQP_CONN_STR=${{ secrets.AMQPCONNSTR }}
           make test
 
       - name: Codecov

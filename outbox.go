@@ -196,7 +196,10 @@ func (outbox *outbox) transaction(tx *sql.Tx, fc func(tx *sql.Tx) error) error {
 
 	if needCommit {
 		if err != nil {
-			tx.Rollback()
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				outbox.logger.WithError(rollbackErr).Error("tx rollback error")
+			}
 			return err
 		}
 		return tx.Commit()

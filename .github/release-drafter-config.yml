@@ -36,6 +36,3 @@ template: |
   ## Changes
 
   $CHANGES
-
-  ## Docker Image
-  - `xyctruth/profiler:v$RESOLVED_VERSION`
