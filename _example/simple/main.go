@@ -28,7 +28,7 @@ func send() {
 	for true {
 		msg := common.DemoMessage{Type: "simple message", Count: 100}
 		msgBytes, _ := msgpack.Marshal(msg)
-		err := bus.Publish("topic1", "handler1", msgBytes, message.WithConfirm(true))
+		err := bus.Publish("topic1", msgBytes, message.WithConfirm(true))
 		if err != nil {
 			panic(err)
 		}
@@ -38,7 +38,7 @@ func send() {
 
 func receive() {
 	bus := final.New("receive_svc", _example.NewDB(), _example.NewAmqp(), final.DefaultOptions())
-	bus.Subscribe("topic1").Middleware(common.Middleware1, common.Middleware2).Handler("handler1", common.EchoHandler)
+	bus.Subscribe("topic1").Middleware(common.Middleware1, common.Middleware2).Handler(common.EchoHandler)
 	err := bus.Start()
 	if err != nil {
 		panic(err)

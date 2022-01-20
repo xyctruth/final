@@ -10,7 +10,6 @@ type (
 	Message struct {
 		UUID    string
 		Topic   string
-		Handler string
 		SvcName string
 		Header  Header
 		Payload []byte
@@ -32,7 +31,6 @@ func NewMessage(uuid, topic, handler string, payload []byte, opts ...PolicyOptio
 	msg := &Message{
 		UUID:       uuid,
 		Topic:      topic,
-		Handler:    handler,
 		Payload:    payload,
 		AckChan:    make(chan struct{}),
 		RejectChan: make(chan struct{}),
@@ -47,13 +45,12 @@ func NewMessage(uuid, topic, handler string, payload []byte, opts ...PolicyOptio
 	return msg
 }
 
-func (m *Message) Reset(uuid, topic, handler string, payload []byte, opts ...PolicyOption) {
+func (m *Message) Reset(uuid, topic string, payload []byte, opts ...PolicyOption) {
 	if uuid == "" {
 		uuid = uuidtools.NewV4().String()
 	}
 	m.UUID = uuid
 	m.Topic = topic
-	m.Handler = handler
 	m.Payload = payload
 
 	messagePolicy := DefaultMessagePolicy()

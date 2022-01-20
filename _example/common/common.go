@@ -8,18 +8,22 @@ import (
 )
 
 func Middleware1(c *final.Context) error {
+	fmt.Println("Middleware1 before")
 	err := c.Next()
 	if err != nil {
 		return err
 	}
+	fmt.Println("Middleware1 after")
 	return nil
 }
 
 func Middleware2(c *final.Context) error {
+	fmt.Println("Middleware2 before")
 	err := c.Next()
 	if err != nil {
 		return err
 	}
+	fmt.Println("Middleware2 after")
 	return nil
 }
 

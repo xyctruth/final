@@ -21,12 +21,10 @@ func NewMessageFromDelivery(delivery amqp.Delivery) *message.Message {
 
 func NewPublishingFromMessage(msg *message.Message) amqp.Publishing {
 	headers := amqp.Table{
-		"x-final-msg-topic":   msg.Topic,
-		"x-final-msg-handler": msg.Handler,
+		"x-final-msg-topic": msg.Topic,
 	}
 
 	publishing := amqp.Publishing{
-		Type:        msg.Handler,
 		Body:        msg.Payload,
 		ReplyTo:     msg.SvcName,
 		MessageId:   msg.UUID,

@@ -6,17 +6,89 @@ import (
 	"testing"
 	"time"
 
-	"gorm.io/gorm"
-
-	"github.com/xyctruth/final/_example"
-
-	"github.com/vmihailenco/msgpack/v5"
-
 	"github.com/stretchr/testify/require"
+	"github.com/vmihailenco/msgpack/v5"
+	"github.com/xyctruth/final/_example"
 	"github.com/xyctruth/final/message"
+	"gorm.io/gorm"
 )
 
-func TestPurgeOnStartup(t *testing.T) {
+func TestGeneral(t *testing.T) {
+	bus := New("test_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithNumAcker(1).WithNumSubscriber(1).WithPurgeOnStartup(true))
+
+	count := 0
+
+	bus.Subscribe("General").Handler(func(c *Context) error {
+		count++
+		msg := &DemoMessage{}
+		err := msgpack.Unmarshal(c.Message.Payload, msg)
+		require.Equal(t, nil, err)
+		require.Equal(t, "message", msg.Type)
+		require.Equal(t, 100, msg.Count)
+		return nil
+	})
+
+	err := bus.Start()
+	require.Equal(t, nil, err)
+
+	msg := DemoMessage{Type: "message", Count: 100}
+	msgBytes, err := msgpack.Marshal(msg)
+	require.Equal(t, nil, err)
+
+	err = bus.Publish("General", msgBytes, message.WithConfirm(true))
+	require.Equal(t, nil, err)
+
+	err = bus.Publish("General", msgBytes, message.WithConfirm(true))
+	require.Equal(t, nil, err)
+
+	time.Sleep(1 * time.Second)
+	err = bus.Shutdown()
+	require.Equal(t, nil, err)
+	require.Equal(t, 2, count)
+}
+
+func TestRetry(t *testing.T) {
+
+	tests := []struct {
+		name  string
+		retry uint
+		want  int
+	}{
+		{name: "retry count 0", retry: 0, want: 1},
+		{name: "retry count 1", retry: 1, want: 2},
+		{name: "retry count 2", retry: 2, want: 3},
+		{name: "retry count 3", retry: 3, want: 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bus := New("test_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithRetryCount(tt.retry).WithPurgeOnStartup(true))
+			count := 0
+			bus.Subscribe("Retry").Handler(func(c *Context) error {
+				count++
+				return errors.New("error")
+			})
+
+			err := bus.Start()
+			require.Equal(t, nil, err)
+
+			msg := DemoMessage{Type: "message", Count: 100}
+			msgBytes, err := msgpack.Marshal(msg)
+			require.Equal(t, nil, err)
+
+			err = bus.Publish("Retry", msgBytes, message.WithConfirm(true))
+			require.Equal(t, nil, err)
+
+			time.Sleep(1 * time.Second)
+			err = bus.Shutdown()
+			require.Equal(t, nil, err)
+			require.Equal(t, tt.want, count)
+		})
+	}
+
+}
+
+func TestWithPurgeOnStartup(t *testing.T) {
 	tests := []struct {
 		name  string
 		purge bool
@@ -30,7 +102,7 @@ func TestPurgeOnStartup(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bus1 := New("bus1_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithNumAcker(1).WithNumSubscriber(1).WithPurgeOnStartup(tt.purge))
 			count := 0
-			bus1.Subscribe("PurgeOnStartup").Handler("handler1", func(c *Context) error {
+			bus1.Subscribe("PurgeOnStartup").Handler(func(c *Context) error {
 				count++
 				msg := &DemoMessage{}
 				err := msgpack.Unmarshal(c.Message.Payload, msg)
@@ -48,7 +120,7 @@ func TestPurgeOnStartup(t *testing.T) {
 			bus2 := New("test_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithNumAcker(1).WithNumSubscriber(1).WithPurgeOnStartup(false))
 			err = bus2.Start()
 			require.Equal(t, nil, err)
-			err = bus2.Publish("PurgeOnStartup", "handler1", NewDemoMessage("message", 100), message.WithConfirm(true))
+			err = bus2.Publish("PurgeOnStartup", NewDemoMessage("message", 100), message.WithConfirm(true))
 			require.Equal(t, nil, err)
 			time.Sleep(1 * time.Second)
 			err = bus2.Shutdown()
@@ -64,40 +136,6 @@ func TestPurgeOnStartup(t *testing.T) {
 			require.Equal(t, tt.want, count)
 		})
 	}
-}
-
-func TestPublish_SelfReceive(t *testing.T) {
-	bus := New("test_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithNumAcker(1).WithNumSubscriber(1).WithPurgeOnStartup(true))
-
-	count := 0
-
-	bus.Subscribe("Publish_SelfReceive").Handler("handler1", func(c *Context) error {
-		count++
-		msg := &DemoMessage{}
-		err := msgpack.Unmarshal(c.Message.Payload, msg)
-		require.Equal(t, nil, err)
-		require.Equal(t, "message", msg.Type)
-		require.Equal(t, 100, msg.Count)
-		return nil
-	})
-
-	err := bus.Start()
-	require.Equal(t, nil, err)
-
-	msg := DemoMessage{Type: "message", Count: 100}
-	msgBytes, err := msgpack.Marshal(msg)
-	require.Equal(t, nil, err)
-
-	err = bus.Publish("Publish_SelfReceive", "handler1", msgBytes, message.WithConfirm(true))
-	require.Equal(t, nil, err)
-
-	err = bus.Publish("Publish_SelfReceive", "handler1", msgBytes, message.WithConfirm(true))
-	require.Equal(t, nil, err)
-
-	time.Sleep(1 * time.Second)
-	err = bus.Shutdown()
-	require.Equal(t, nil, err)
-	require.Equal(t, 2, count)
 }
 
 func TestSqlTxMessage(t *testing.T) {
@@ -117,7 +155,7 @@ func TestSqlTxMessage(t *testing.T) {
 			bus := New("test_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithNumAcker(1).WithNumSubscriber(1).WithPurgeOnStartup(true))
 
 			count := 0
-			bus.Subscribe("GormTxMessage").Handler("handler1", func(c *Context) error {
+			bus.Subscribe("SqlTxMessage").Handler(func(c *Context) error {
 				count++
 				msg := &DemoMessage{}
 				err := msgpack.Unmarshal(c.Message.Payload, msg)
@@ -149,7 +187,7 @@ func TestSqlTxMessage(t *testing.T) {
 				}
 				localBusiness.Id, _ = result.LastInsertId()
 
-				err = txBus.Publish("GormTxMessage", "handler1", msgBytes)
+				err = txBus.Publish("SqlTxMessage", msgBytes)
 				if err != nil {
 					return err
 				}
@@ -187,7 +225,7 @@ func TestGormTxMessage(t *testing.T) {
 			bus := New("test_svc", _example.NewDB(), _example.NewAmqp(), DefaultOptions().WithNumAcker(1).WithNumSubscriber(1).WithPurgeOnStartup(true))
 
 			count := 0
-			bus.Subscribe("GormTxMessage").Handler("handler1", func(c *Context) error {
+			bus.Subscribe("GormTxMessage").Handler(func(c *Context) error {
 				count++
 				msg := &DemoMessage{}
 				err := msgpack.Unmarshal(c.Message.Payload, msg)
@@ -220,7 +258,7 @@ func TestGormTxMessage(t *testing.T) {
 					return result.Error
 				}
 
-				err = txBus.Publish("GormTxMessage", "handler1", msgBytes)
+				err = txBus.Publish("GormTxMessage", msgBytes)
 				if err != nil {
 					return err
 				}

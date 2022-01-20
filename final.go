@@ -161,11 +161,11 @@ func (bus *Bus) Subscribe(topic string) *routerTopic {
 	return newTopic
 }
 
-func (bus *Bus) Publish(topic string, handler string, payload []byte, opts ...message.PolicyOption) error {
+func (bus *Bus) Publish(topic string, payload []byte, opts ...message.PolicyOption) error {
 	var err error
 
 	msg := bus.msgPool.Get().(*message.Message)
-	msg.Reset("", topic, handler, payload, opts...)
+	msg.Reset("", topic, payload, opts...)
 
 	if msg.Policy.Confirm {
 		err = bus.outbox.staging(nil, msg)
@@ -206,12 +206,12 @@ func (bus *Bus) Transaction(tx *sql.Tx, fc func(txBus *TxBus) error) error {
 	return txBus.Commit()
 }
 
-func (txBus *TxBus) Publish(topic string, handler string, payload []byte, opts ...message.PolicyOption) error {
+func (txBus *TxBus) Publish(topic string, payload []byte, opts ...message.PolicyOption) error {
 	txBus.mutex.Lock()
 	defer txBus.mutex.Unlock()
 
 	msg := txBus.bus.msgPool.Get().(*message.Message)
-	msg.Reset("", topic, handler, payload, opts...)
+	msg.Reset("", topic, payload, opts...)
 
 	err := txBus.bus.outbox.staging(txBus.tx, msg)
 	if err != nil {

@@ -6,10 +6,9 @@ import (
 
 type (
 	Context struct {
-		Topic       string
-		HandlerName string
-		Key         string
-		Message     *message.Message
+		Topic   string
+		Key     string
+		Message *message.Message
 		// middleware and handler
 		handlers []HandlerFunc
 		index    int
@@ -30,7 +29,6 @@ func (c *Context) Next() error {
 
 func (c *Context) Reset(m *message.Message, handlers []HandlerFunc) {
 	c.Topic = m.Topic
-	c.HandlerName = m.Handler
 	c.Message = m
 	c.handlers = handlers
 	c.index = -1

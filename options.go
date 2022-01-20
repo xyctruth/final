@@ -5,8 +5,11 @@ import "time"
 type Options struct {
 	PurgeOnStartup bool // 启动Bus时是否清除遗留的消息，包含（mq遗留的消息，和本地消息表遗留的消息）
 
-	MaxRetryCount int           // 重试次数
-	RetryDuration time.Duration // 重试间隔
+	// RetryCount retry count of message processing failed
+	// Does not include the first attempt
+	RetryCount uint
+	// RetryCount retry interval of message processing failed
+	RetryInterval time.Duration
 
 	// outbox opt
 	OutboxScanInterval time.Duration // 扫描outbox没有收到ack的消息间隔
@@ -21,16 +24,31 @@ func DefaultOptions() Options {
 	return Options{
 		PurgeOnStartup:     false,
 		NumSubscriber:      5,
-		MaxRetryCount:      3,
-		RetryDuration:      10 * time.Millisecond,
+		RetryCount:         3,
+		RetryInterval:      10 * time.Millisecond,
 		NumAcker:           5,
 		OutboxScanOffset:   500,
 		OutboxScanInterval: 1 * time.Minute,
 	}
 }
 
+// WithRetryCount sets the retry count of message processing failed
+// Does not include the first attempt
+// The default value of RetryCount is 3.
+func (opt Options) WithRetryCount(val uint) Options {
+	opt.RetryCount = val
+	return opt
+}
+
+// WithRetryInterval sets the retry interval of message processing failed
+// The default value of RetryInterval is 10 millisecond.
+func (opt Options) WithRetryInterval(val time.Duration) Options {
+	opt.RetryInterval = val
+	return opt
+}
+
 // WithNumSubscriber sets the number of subscriber
-// 1 subscriber run 1 goroutine
+// Each subscriber runs in an independent goroutine
 // The default value of NumSubscriber is 5.
 func (opt Options) WithNumSubscriber(val int) Options {
 	opt.NumSubscriber = val
@@ -38,7 +56,7 @@ func (opt Options) WithNumSubscriber(val int) Options {
 }
 
 // WithNumAcker sets the number of acker
-// 1 acker run 1 goroutine
+// Each acker runs in an independent goroutine
 // The default value of NumAcker is 5.
 func (opt Options) WithNumAcker(val int) Options {
 	opt.NumAcker = val

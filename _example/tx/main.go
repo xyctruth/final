@@ -38,7 +38,7 @@ func send() {
 			if err != nil {
 				return err
 			}
-			err = txBus.Publish("topic1", "handler1", msgBytes)
+			err = txBus.Publish("topic1", msgBytes)
 			if err != nil {
 				return err
 			}
@@ -74,7 +74,7 @@ func sendGorm() {
 			if result.Error != nil {
 				return result.Error
 			}
-			err = txBus.Publish("topic1", "handler1", msgBytes)
+			err = txBus.Publish("topic1", msgBytes)
 			if err != nil {
 				return err
 			}
@@ -91,7 +91,7 @@ func sendGorm() {
 
 func receive() {
 	bus := final.New("receive_svc", _example.NewDB(), _example.NewAmqp(), final.DefaultOptions().WithPurgeOnStartup(true))
-	bus.Subscribe("topic1").Middleware(common.Middleware1, common.Middleware2).Handler("handler1", common.EchoHandler)
+	bus.Subscribe("topic1").Middleware(common.Middleware1, common.Middleware2).Handler(common.EchoHandler)
 	err := bus.Start()
 	if err != nil {
 		panic(err)

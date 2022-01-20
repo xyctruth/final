@@ -2,7 +2,6 @@ package final
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/xyctruth/final/message"
@@ -31,8 +30,8 @@ func (topic *routerTopic) Middleware(middlewares ...HandlerFunc) *routerTopic {
 	return topic
 }
 
-func (topic *routerTopic) Handler(name string, handler HandlerFunc) {
-	topic.bus.router.addRoute(topic.name, name, handler)
+func (topic *routerTopic) Handler(handler HandlerFunc) {
+	topic.bus.router.addRoute(topic.name, handler)
 }
 
 func newRouter() *router {
@@ -47,19 +46,15 @@ func newRouter() *router {
 	return s
 }
 
-func (r *router) addRoute(topic, handlerName string, handler HandlerFunc) {
-	r.handlers[r.buildKey(topic, handlerName)] = handler
+func (r *router) addRoute(topic string, handler HandlerFunc) {
+	r.handlers[topic] = handler
 }
 
-func (r *router) getRoute(topic, handlerName string) HandlerFunc {
-	if handler, ok := r.handlers[r.buildKey(topic, handlerName)]; ok {
+func (r *router) getRoute(topic string) HandlerFunc {
+	if handler, ok := r.handlers[topic]; ok {
 		return handler
 	}
 	return nil
-}
-
-func (r *router) buildKey(topic, handlerName string) string {
-	return fmt.Sprintf("%s/%s", topic, handlerName)
 }
 
 func (r *router) handle(msg *message.Message) error {
@@ -71,11 +66,13 @@ func (r *router) handle(msg *message.Message) error {
 	c := r.ctxPool.Get().(*Context)
 	defer r.ctxPool.Put(c)
 
+	// 初始化 context ,添加 msg，middlewares
 	c.Reset(msg, middlewares)
 
-	handle := r.getRoute(c.Topic, c.HandlerName)
-	if handle != nil {
-		c.handlers = append(c.handlers, handle)
+	// 追加 handler
+	handler := r.getRoute(c.Topic)
+	if handler != nil {
+		c.handlers = append(c.handlers, handler)
 	} else {
 		c.handlers = append(c.handlers, func(c *Context) error {
 			return errors.New("no match handler")
