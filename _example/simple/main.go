@@ -26,7 +26,7 @@ func send() {
 	}
 	defer bus.Shutdown()
 	for true {
-		msg := common.DemoMessage{Type: "simple message", Count: 100}
+		msg := common.GeneralMessage{Type: "simple message", Count: 100}
 		msgBytes, _ := msgpack.Marshal(msg)
 		err := bus.Publish("topic1", msgBytes, message.WithConfirm(true))
 		if err != nil {

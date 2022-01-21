@@ -28,16 +28,17 @@ func send() {
 	}
 	defer bus.Shutdown()
 	for true {
-		msg := common.DemoMessage{Type: "sql transaction message", Count: 100}
-		msgBytes, _ := msgpack.Marshal(msg)
 		tx, _ := _example.NewDB().Begin()
 
 		/* return err rollback，return nil commit */
 		err := bus.Transaction(tx, func(txBus *final.TxBus) error {
-			_, err := tx.Exec("INSERT INTO local_business (remark) VALUE (?)", "sql message")
+			_, err := tx.Exec("INSERT INTO local_business (remark) VALUE (?)", "sql local business")
 			if err != nil {
 				return err
 			}
+
+			msg := common.GeneralMessage{Type: "sql transaction message", Count: 100}
+			msgBytes, _ := msgpack.Marshal(msg)
 			err = txBus.Publish("topic1", msgBytes)
 			if err != nil {
 				return err
@@ -61,19 +62,20 @@ func sendGorm() {
 	}
 	defer bus.Shutdown()
 	for true {
-		msg := common.DemoMessage{Type: "gorm transaction message", Count: 100}
-		msgBytes, _ := msgpack.Marshal(msg)
+
 		tx := _example.NewGormDB().Begin()
 
-		localBusiness := _example.LocalBusiness{
-			Remark: "gorm tx message",
-		}
 		/* return err rollback，return nil commit */
 		err = bus.Transaction(tx.Statement.ConnPool.(*sql.Tx), func(txBus *final.TxBus) error {
-			result := tx.Create(&localBusiness)
+			result := tx.Create(&_example.LocalBusiness{
+				Remark: "gorm local business",
+			})
 			if result.Error != nil {
 				return result.Error
 			}
+
+			msg := common.GeneralMessage{Type: "gorm transaction message", Count: 100}
+			msgBytes, _ := msgpack.Marshal(msg)
 			err = txBus.Publish("topic1", msgBytes)
 			if err != nil {
 				return err

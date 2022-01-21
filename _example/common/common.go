@@ -28,13 +28,16 @@ func Middleware2(c *final.Context) error {
 }
 
 func EchoHandler(c *final.Context) error {
-	msg := &DemoMessage{}
-	msgpack.Unmarshal(c.Message.Payload, msg)
+	msg := &GeneralMessage{}
+	err := msgpack.Unmarshal(c.Message.Payload, msg)
+	if err != nil {
+		return err
+	}
 	fmt.Println(msg)
 	return nil
 }
 
-type DemoMessage struct {
+type GeneralMessage struct {
 	Type  string
 	Count int64
 }
