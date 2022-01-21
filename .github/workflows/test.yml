@@ -10,9 +10,9 @@ jobs:
   server-test:
     strategy:
       matrix:
-        dbversion: ['mysql:5.7']
+        dbversion: ['mysql:5.7','mysql:latest']
         go: ['1.17', '1.16']
-        mqversion: ['rabbitmq:3.8']
+        mqversion: ['rabbitmq:3.8','rabbitmq:3.9','rabbitmq:latest']
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
 
