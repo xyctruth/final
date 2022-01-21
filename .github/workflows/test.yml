@@ -11,6 +11,8 @@ jobs:
     strategy:
       matrix:
         dbversion: ['mysql:5.7']
+        go: ['1.17', '1.16']
+        mqversion: ['rabbitmq:3.8']
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
 
@@ -30,24 +32,34 @@ jobs:
           --health-start-period 10s
           --health-timeout 5s
           --health-retries 10
+      rabbitmq:
+        image: ${{ matrix.mqversion }}
+        env:
+          RABBITMQ_DEFAULT_VHOST: final
+          RABBITMQ_DEFAULT_USER: final
+          RABBITMQ_DEFAULT_PASS: final
+        ports:
+          - 9911:5672
 
     steps:
-      - name: Install Go
+      - name: Set up Go 1.x
         uses: actions/setup-go@v2
         with:
-          go-version: 1.17
+          go-version: ${{ matrix.go }}
 
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Echo os
-        run: |
-          echo ${{runner.os}}
+      - name: go mod package cache
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ matrix.go }}-${{ hashFiles('tests/go.mod') }}
 
       - name: Test
         run: |
           export MYSQL_CONN_STR="final:final@tcp(localhost:9910)/final?charset=utf8&parseTime=True"
-          export AMQP_CONN_STR="${{ secrets.AMQPCONNSTR }}"
+          export AMQP_CONN_STR="amqp://final:final@localhost:9911/final"
           make test
 
       - name: Codecov
