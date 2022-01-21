@@ -37,7 +37,7 @@ bus.Subscribe("topic1").Middleware(common.Middleware1, common.Middleware2).Handl
 `common.Middleware1`,`common.Middleware2`,`common.EchoHandler` 的代码在 [common.go](_example/common/common.go)
 
 
-## 普通发布
+## 发布
 
 ```go
 msg := common.GeneralMessage{Type: "simple message", Count: 100}
@@ -48,8 +48,7 @@ if err != nil {
 }
 ```
 
-### 
-
+更多消息发布策略在 [message_policy.go](./message/message_policy.go)
 
 ## 关联本地事务发布
 

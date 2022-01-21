@@ -23,7 +23,7 @@ func DefaultMessagePolicy() *Policy {
 
 type PolicyOption func(c *Policy)
 
-// WithConfirm 开启Confirm，决定消息是否一定发送成功。默认开启
+// WithConfirm 开启Confirm，会使用本地消息表保存消息，联合mq的Confirm机制
 func WithConfirm(use bool) PolicyOption {
 	return func(c *Policy) {
 		c.Confirm = use
