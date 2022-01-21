@@ -29,13 +29,16 @@ issues:
   exclude-rules:
     - linters:
         - gosec
-      text: "G108:"
+      text: "G108"
+    - linters:
+        - gosec
+      text: "G404"
     - linters:
         - govet
       text: "sigchanyzer: misuse of unbuffered os.Signal channel as argument to signal.Notify"
     - linters:
         - staticcheck
-      text: "SA1017:"
+      text: "SA1017"
     - linters:
         - revive
       text: "exported: type name will be used as collector.CollectorConfig by other packages,"

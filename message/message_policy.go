@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// Policy MessagePolicy BusMessage config
+// Policy Message Policy
 type Policy struct {
 	Confirm bool
 	Durable bool

@@ -67,7 +67,7 @@ func (subscriber *subscriber) processMessage(msg *message.Message) {
 
 	err := retry.Retry(retryAction,
 		// github.com/Rican7/retry v3版本limit包含第一次尝试的次数
-		strategy.Limit(uint(subscriber.bus.opt.RetryCount+1)),
+		strategy.Limit(subscriber.bus.opt.RetryCount+1),
 		strategy.BackoffWithJitter(
 			backoff.BinaryExponential(subscriber.bus.opt.RetryInterval),
 			jitter.Deviation(random, 0.5),
