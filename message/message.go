@@ -24,7 +24,7 @@ type (
 	Header map[string]interface{}
 )
 
-func NewMessage(uuid, topic, handler string, payload []byte, opts ...PolicyOption) *Message {
+func NewMessage(uuid, topic string, payload []byte, opts ...PolicyOption) *Message {
 	if uuid == "" {
 		uuid = uuidtools.NewV4().String()
 	}

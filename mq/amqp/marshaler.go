@@ -12,7 +12,6 @@ func NewMessageFromDelivery(delivery amqp.Delivery) *message.Message {
 	msg := message.NewMessage(
 		delivery.MessageId,
 		castToString(delivery.Headers["x-final-msg-topic"]),
-		castToString(delivery.Headers["x-final-msg-handler"]),
 		delivery.Body,
 	)
 

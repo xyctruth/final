@@ -13,7 +13,8 @@ type Options struct {
 
 	// outbox opt
 	OutboxScanInterval time.Duration // 扫描outbox没有收到ack的消息间隔
-	OutboxScanOffset   int64         // 扫描outbox没有收到ack的消息
+	OutboxScanOffset   int64         // 扫描outbox没有收到ack的消息偏移量
+	OutboxScanAgoTime  time.Duration // 扫描多久之前的消息
 
 	NumSubscriber int // subscriber number
 	NumAcker      int // acker number
@@ -29,6 +30,7 @@ func DefaultOptions() Options {
 		NumAcker:           5,
 		OutboxScanOffset:   500,
 		OutboxScanInterval: 1 * time.Minute,
+		OutboxScanAgoTime:  1 * time.Minute,
 	}
 }
 
@@ -70,9 +72,16 @@ func (opt Options) WithOutboxScanInterval(val time.Duration) Options {
 	return opt
 }
 
-// WithOutboxScanOffset  设置扫描outbox没有收到ack的消息
+// WithOutboxScanOffset  设置扫描outbox没有收到ack的消息的偏移量
 // The default value of OutboxScanOffset is 500.
 func (opt Options) WithOutboxScanOffset(val int64) Options {
+	opt.OutboxScanOffset = val
+	return opt
+}
+
+// WithOutboxScanAgoTime  设置扫描多久之前的消息
+// The default value of OutboxScanAgoTime is  1 minute.
+func (opt Options) WithOutboxScanAgoTime(val int64) Options {
 	opt.OutboxScanOffset = val
 	return opt
 }
