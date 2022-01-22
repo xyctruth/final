@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lopezator/migrator"
 	"github.com/sirupsen/logrus"
 	"github.com/vmihailenco/msgpack/v5"
 	"github.com/xyctruth/final/message"
@@ -61,22 +62,37 @@ func (outbox *outbox) Start(ctx context.Context) error {
 }
 
 func (outbox *outbox) init() error {
-	initSQL := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
-			(
-				id        bigint auto_increment primary key,
-				message   longblob    null,
-				status    bigint      null,
-				create_at datetime(3) null,
-				last_send_at datetime(3) null
-			);`
+	// Configure migrations
+	m, err := migrator.New(
+		migrator.TableName(fmt.Sprintf("%s_migrations", outbox.name)),
+		migrator.Migrations(
+			&migrator.Migration{
+				Name: "init outbox table",
+				Func: func(tx *sql.Tx) error {
+					initSQL := `CREATE TABLE IF NOT EXISTS ` + outbox.name + `
+								(
+									id        bigint auto_increment primary key,
+									message   longblob    null,
+									status    bigint      null,
+									create_at datetime(3) null,
+									last_send_at datetime(3) null
+								);`
 
-	_, err := outbox.db.Exec(initSQL)
+					_, err := tx.Exec(initSQL)
+					return err
+				},
+			},
+		),
+	)
 
 	if err != nil {
-		outbox.logger.WithError(err).Error("Migrations error")
+		outbox.logger.WithError(err).Error("migrator error")
 		return err
 	}
-	outbox.logger.Infof("Applied  migrations!")
+	if err = m.Migrate(outbox.db); err != nil {
+		outbox.logger.WithError(err).Error("migrator up error")
+		return err
+	}
 
 	if outbox.bus.opt.PurgeOnStartup {
 		purgeSQL := "delete from " + outbox.name
@@ -153,9 +169,8 @@ func (outbox *outbox) take(tx *sql.Tx, offset int64, ago time.Duration) ([]*mess
 	var datetime = time.Now().Add(-ago)
 
 	err := outbox.transaction(tx, func(tx *sql.Tx) error {
-		rows, err := tx.Query(
-			" SELECT id,message,status,create_at FROM "+outbox.name+" WHERE  status = ? AND last_send_at < ? ORDER BY id ASC LIMIT ? FOR UPDATE",
-			OutBoxRecordStatusPending, datetime, offset)
+		querySQL := fmt.Sprintf("SELECT id,message,status,create_at FROM %s WHERE  status = ? AND last_send_at < ? ORDER BY id ASC LIMIT ? FOR UPDATE", outbox.name)
+		rows, err := tx.Query(querySQL, OutBoxRecordStatusPending, datetime, offset)
 
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -188,8 +203,8 @@ func (outbox *outbox) take(tx *sql.Tx, offset int64, ago time.Duration) ([]*mess
 
 		if len(ids) > 0 {
 			whereStr := strings.Join(ids, ",")
-			updateSql := fmt.Sprintf("UPDATE %s SET last_send_at = ? WHERE ID IN (%s)", outbox.name, whereStr)
-			_, err = tx.Exec(updateSql, time.Now())
+			updateSQL := fmt.Sprintf("UPDATE %s SET last_send_at = ? WHERE ID IN (%s)", outbox.name, whereStr)
+			_, err = tx.Exec(updateSQL, time.Now())
 			if err != nil {
 				return err
 			}
